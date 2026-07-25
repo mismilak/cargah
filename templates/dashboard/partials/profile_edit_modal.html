@@ -1,0 +1,237 @@
+<div class="custom-modal" id="profileEditModal">
+    <div class="custom-modal__dialog">
+        <div class="custom-modal__header">
+            <h3>ویرایش مشخصات</h3>
+            <button type="button" class="custom-modal__close" onclick="closeProfileModal()">×</button>
+        </div>
+
+        <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_profile">
+
+            <div class="custom-modal__body">
+                <div class="modal-form-grid">
+                    <div class="modal-form-group">
+                        <label for="id_first_name">نام</label>
+                        <input type="text" id="id_first_name" name="first_name" value="{{ request.user.first_name }}">
+                    </div>
+
+                    <div class="modal-form-group">
+                        <label for="id_last_name">نام خانوادگی</label>
+                        <input type="text" id="id_last_name" name="last_name" value="{{ request.user.last_name }}">
+                    </div>
+
+                    <div class="modal-form-group">
+                        <label for="id_phone">شماره موبایل</label>
+                        <input type="text" id="id_phone" name="phone" value="{{ request.user.phone }}">
+                    </div>
+
+                    <div class="modal-form-group">
+                        <label for="id_email">ایمیل</label>
+                        <input type="email" id="id_email" name="email" value="{{ request.user.email }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="custom-modal__footer">
+                <button type="button" class="modal-btn modal-btn--ghost" onclick="closeProfileModal()">انصراف</button>
+                <button type="submit" class="modal-btn modal-btn--primary">ذخیره تغییرات</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .custom-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: all 0.25s ease;
+        z-index: 9999;
+        backdrop-filter: blur(4px);
+    }
+
+    .custom-modal.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .custom-modal__dialog {
+        width: 100%;
+        max-width: 720px;
+        background: #fff;
+        border-radius: 24px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 25px 60px rgba(15, 23, 42, 0.18);
+        overflow: hidden;
+        animation: modalFadeIn 0.25s ease;
+    }
+
+    @keyframes modalFadeIn {
+        from {
+            transform: translateY(12px) scale(0.98);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+    }
+
+    .custom-modal__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f8fafc;
+    }
+
+    .custom-modal__header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .custom-modal__close {
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: #fff;
+        color: #475569;
+        border-radius: 12px;
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid #e5e7eb;
+    }
+
+    .custom-modal__close:hover {
+        background: #fee2e2;
+        color: #dc2626;
+        border-color: #fecaca;
+    }
+
+    .custom-modal__body {
+        padding: 24px;
+    }
+
+    .modal-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .modal-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .modal-form-group--full {
+        grid-column: 1 / -1;
+    }
+
+    .modal-form-group label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .modal-form-group input {
+        width: 100%;
+        height: 48px;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        padding: 0 14px;
+        font-size: 14px;
+        color: #0f172a;
+        background: #fff;
+        transition: all 0.2s ease;
+        outline: none;
+    }
+
+    .modal-form-group input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+    }
+
+    .custom-modal__footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 18px 24px 24px;
+    }
+
+    .modal-btn {
+        min-width: 120px;
+        height: 46px;
+        border-radius: 14px;
+        border: none;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .modal-btn--ghost {
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #dbe3ef;
+    }
+
+    .modal-btn--ghost:hover {
+        background: #eef2f7;
+    }
+
+    .modal-btn--primary {
+        background: linear-gradient(135deg, #2f80ff 0%, #1d4ed8 100%);
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(47, 128, 255, 0.22);
+    }
+
+    .modal-btn--primary:hover {
+        transform: translateY(-1px);
+    }
+
+    body.modal-open {
+        overflow: hidden;
+    }
+
+    @media (max-width: 768px) {
+        .custom-modal__dialog {
+            max-width: 100%;
+            border-radius: 20px;
+        }
+
+        .modal-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .custom-modal__header,
+        .custom-modal__body,
+        .custom-modal__footer {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+
+        .custom-modal__footer {
+            flex-direction: column-reverse;
+        }
+
+        .modal-btn {
+            width: 100%;
+        }
+    }
+</style>

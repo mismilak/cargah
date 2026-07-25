@@ -1,0 +1,217 @@
+{% if messages %}
+    <div class="toast-stack" id="toastStack">
+        {% for message in messages %}
+            <div class="custom-toast custom-toast--{{ message.tags|default:'info' }}" data-duration="5000">
+                <div class="custom-toast__content">
+                    <div class="custom-toast__text">{{ message }}</div>
+                    <div class="custom-toast__meta">
+                        <span>بستن خودکار تا</span>
+                        <span class="toast-countdown">5</span>
+                        <span>ثانیه</span>
+                    </div>
+                </div>
+                <button type="button" class="custom-toast__close" onclick="closeToast(this)">×</button>
+                <div class="custom-toast__progress"></div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <style>
+        .toast-stack {
+            position: fixed;
+            top: 24px;
+            left: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: min(380px, calc(100vw - 32px));
+        }
+
+        .custom-toast {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 14px 18px;
+            border-radius: 18px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            animation: toastIn 0.25s ease;
+        }
+
+        .custom-toast--success {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .custom-toast--error {
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+
+        .custom-toast--warning {
+            border-color: #fde68a;
+            background: #fffbeb;
+        }
+
+        .custom-toast--info {
+            border-color: #bfdbfe;
+            background: #eff6ff;
+        }
+
+        .custom-toast__content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .custom-toast__text {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.8;
+        }
+
+        .custom-toast__meta {
+            font-size: 12px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toast-countdown {
+            font-weight: 800;
+            color: #0f172a;
+            min-width: 10px;
+            text-align: center;
+        }
+
+        .custom-toast__close {
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.7);
+            color: #475569;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .custom-toast__progress {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            height: 4px;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.08);
+            transform-origin: right;
+            animation: toastProgress 5s linear forwards;
+        }
+
+        .custom-toast--success .custom-toast__progress {
+            background: #22c55e;
+        }
+
+        .custom-toast--error .custom-toast__progress {
+            background: #ef4444;
+        }
+
+        .custom-toast--warning .custom-toast__progress {
+            background: #f59e0b;
+        }
+
+        .custom-toast--info .custom-toast__progress {
+            background: #3b82f6;
+        }
+
+        @keyframes toastProgress {
+            from {
+                width: 100%;
+            }
+            to {
+                width: 0;
+            }
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes toastOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+
+        .custom-toast.is-hiding {
+            animation: toastOut 0.25s ease forwards;
+        }
+
+        @media (max-width: 768px) {
+            .toast-stack {
+                top: 16px;
+                left: 16px;
+                right: 16px;
+                width: auto;
+            }
+        }
+    </style>
+
+    <script>
+        function closeToast(button) {
+            const toast = button.closest('.custom-toast');
+            if (!toast) return;
+
+            toast.classList.add('is-hiding');
+            setTimeout(() => {
+                toast.remove();
+            }, 250);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const toasts = document.querySelectorAll('.custom-toast');
+
+            toasts.forEach((toast) => {
+                const countdownEl = toast.querySelector('.toast-countdown');
+                let seconds = 5;
+
+                const interval = setInterval(() => {
+                    seconds -= 1;
+                    if (countdownEl && seconds >= 0) {
+                        countdownEl.textContent = seconds;
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(interval);
+                    }
+                }, 1000);
+
+                setTimeout(() => {
+                    toast.classList.add('is-hiding');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 250);
+                }, 5000);
+            });
+        });
+    </script>
+{% endif %}

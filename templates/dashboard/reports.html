@@ -1,0 +1,26 @@
+{% extends "dashboard/base_dashboard.html" %}
+
+{% block dashboard_title %}گزارش‌ها | زنجیره{% endblock %}
+{% block page_heading %}گزارش‌ها{% endblock %}
+{% block page_subtitle %}خلاصه آماری عملکرد کارگاه{% endblock %}
+
+{% block dashboard_content %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="stat-card rounded-3xl p-4">
+            <div class="mini-label mb-2">عملیات ثبت شده امروز</div>
+            <div class="mini-value text-lg">18 عملیات</div>
+        </div>
+        <div class="stat-card rounded-3xl p-4">
+            <div class="mini-label mb-2">بیشترین فرایند</div>
+            <div class="mini-value text-lg">تراشکاری</div>
+        </div>
+        <div class="stat-card rounded-3xl p-4">
+            <div class="mini-label mb-2">ساعات کاری</div>
+            <div class="mini-value text-lg">26.5 ساعت</div>
+        </div>
+        <div class="stat-card rounded-3xl p-4">
+            <div class="mini-label mb-2">درآمد برآوردی</div>
+            <div class="mini-value text-lg">8,750,000 تومان</div>
+        </div>
+    </div>
+{% endblock %}

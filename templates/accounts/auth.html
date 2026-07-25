@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if page == 'register' %}ثبت‌نام
+    {% elif page == 'login' %}ورود
+    {% else %}احراز هویت{% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="min-h-screen flex items-center justify-center bg-gray-950 px-4 py-12">
+        <div class="w-full max-w-5xl min-h-[680px] flex rounded-2xl overflow-hidden shadow-2xl border border-gray-800 bg-gray-900">
+
+            <!-- ستون چپ: تصویر -->
+            <div class="hidden md:block w-1/2 relative">
+                <img src="{% static 'images/pics/login.png' %}"
+                     alt="زنجیره"
+                     class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-gray-950/30 to-transparent"></div>
+                <div class="absolute bottom-8 right-8 left-8">
+                    <span class="text-3xl font-bold text-amber-400" style="font-family:'JetBrains Mono',monospace">زنجیره</span>
+                    <p class="text-gray-300 text-sm mt-2">پلتفرم مدیریت کارگاه‌های صنعتی</p>
+                </div>
+            </div>
+
+            <!-- ستون راست: فرم -->
+            <div class="w-full md:w-1/2 bg-gray-900 p-8 lg:p-10 flex flex-col justify-center">
+
+                <!-- لوگو موبایل -->
+                <div class="md:hidden text-center mb-6">
+                    <span class="text-2xl font-bold text-amber-400" style="font-family:'JetBrains Mono',monospace">زنجیره</span>
+                </div>
+
+                {% if messages %}
+                    <div class="space-y-2 mb-4">
+                        {% for msg in messages %}
+                            <div class="p-3 rounded-lg bg-red-900/40 text-red-300 text-sm">{{ msg }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- ===== صفحه ثبت‌نام ===== -->
+                {% if page == 'register' %}
+                    <div class="min-h-[520px] flex flex-col justify-center">
+                        <h2 class="text-white text-xl font-bold mb-6">ایجاد حساب کاربری</h2>
+                        <form method="post" class="space-y-4">
+                            {% csrf_token %}
+                            {% for field in form %}
+                                <div>
+                                    <label class="block text-gray-400 text-sm mb-1">{{ field.label }}</label>
+                                    <input placeholder="{{ field.help_text }}" type="{{ field.field.widget.input_type }}"
+                                           name="{{ field.html_name }}"
+                                           {% if field.value %}value="{{ field.value }}"{% endif %}
+                                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400 transition">
+                                    {% if field.errors %}
+                                        <p class="text-red-400 text-xs mt-1">{{ field.errors|join:", " }}</p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                            <button type="submit"
+                                    class="w-full bg-amber-400 hover:bg-amber-300 text-gray-950 font-bold py-2.5 rounded-lg transition text-sm mt-2">
+                                ثبت‌نام
+                            </button>
+                        </form>
+                        <p class="text-center text-gray-500 text-sm mt-6">
+                            حساب دارید؟ <a href="{% url 'accounts:login' %}"
+                                           class="text-amber-400 hover:underline">ورود</a>
+                        </p>
+                    </div>
+
+                    <!-- ===== صفحه ورود ===== -->
+                {% elif page == 'login' %}
+                    <div class="min-h-[520px] flex flex-col justify-center">
+                        <h2 class="text-white text-xl font-bold mb-6">ورود به حساب</h2>
+
+                        <!-- تب‌ها -->
+                        <div class="relative flex rounded-xl bg-gray-800 p-1 mb-6">
+                            <div id="tab-indicator"
+                                 class="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-gray-700 transition-all duration-300 ease-in-out right-1">
+                            </div>
+
+                            <button type="button"
+                                    onclick="switchTab('email')"
+                                    id="tab-email"
+                                    class="relative z-10 flex-1 py-2 rounded-md text-sm font-medium transition text-amber-400">
+                                ایمیل و رمز
+                            </button>
+
+                            <button type="button"
+                                    onclick="switchTab('otp')"
+                                    id="tab-otp"
+                                    class="relative z-10 flex-1 py-2 rounded-md text-sm font-medium transition text-gray-400">
+                                کد یکبار مصرف
+                            </button>
+                        </div>
+
+                        <!-- ناحیه اسلاید -->
+                        <div class="overflow-hidden relative min-h-[260px]">
+                            <div id="tab-track"
+                                 class="flex w-[200%] transition-transform duration-300 ease-in-out">
+
+                                <!-- فرم ایمیل -->
+                                <div class="w-1/2 pl-2">
+                                    <form method="post" class="space-y-4">
+                                        {% csrf_token %}
+                                        {% for field in form %}
+                                            <div>
+                                                <label class="block text-gray-400 text-sm mb-1">{{ field.label }}</label>
+                                                <input type="{{ field.field.widget.input_type }}"
+                                                       name="{{ field.html_name }}"
+                                                       {% if field.value %}value="{{ field.value }}"{% endif %}
+                                                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400 transition">
+                                                {% if field.errors %}
+                                                    <p class="text-red-400 text-xs mt-1">{{ field.errors|join:", " }}</p>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                        <button type="submit"
+                                                class="w-full bg-amber-400 hover:bg-amber-300 text-gray-950 font-bold py-2.5 rounded-lg transition text-sm">
+                                            ورود
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <!-- پنل OTP -->
+                                <div class="w-1/2 pr-2">
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-gray-400 text-sm mb-1">ورود با کد یکبار
+                                                مصرف</label>
+                                            <p class="text-gray-500 text-sm mb-4">
+                                                برای ورود سریع، کد تأیید به شماره موبایل شما ارسال می‌شود.
+                                            </p>
+                                        </div>
+
+                                        <a href="{% url 'accounts:otp_request' %}"
+                                           class="block w-full text-center bg-gray-800 hover:bg-gray-700 border border-gray-700 text-amber-400 font-bold py-2.5 rounded-lg transition text-sm">
+                                            ادامه با OTP
+                                        </a>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <p class="text-center text-gray-500 text-sm mt-6">
+                            حساب ندارید؟ <a href="{% url 'accounts:register' %}" class="text-amber-400 hover:underline">ثبت‌نام</a>
+                        </p>
+                    </div>
+
+                    <!-- ===== درخواست OTP ===== -->
+                {% elif page == 'otp_request' %}
+                    <div class="min-h-[520px] flex flex-col justify-center">
+                        <h2 class="text-white text-xl font-bold mb-2">ورود با کد یکبار مصرف</h2>
+                        <p class="text-gray-400 text-sm mb-6">کد ۶ رقمی به شماره موبایل شما ارسال می‌شود.</p>
+
+                        <form method="post" class="space-y-4" id="otp-request-form">
+                            {% csrf_token %}
+                            <div>
+                                <label class="block text-gray-400 text-sm mb-1">شماره موبایل</label>
+                                <input type="text" name="phone"
+                                       value="{{ request.POST.phone|default:'' }}"
+                                       placeholder="مثلاً 09123456789"
+                                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400 transition">
+                            </div>
+
+                            <button type="submit" id="send-otp-btn"
+                                    {% if otp_cooldown %}disabled{% endif %}
+                                    class="w-full bg-amber-400 hover:bg-amber-300 text-gray-950 font-bold py-2.5 rounded-lg transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                {% if otp_cooldown %}
+                                    ارسال مجدد (<span id="countdown">{{ otp_cooldown }}</span> ثانیه)
+                                {% else %}
+                                    ارسال کد
+                                {% endif %}
+                            </button>
+                        </form>
+
+                        <p class="text-center text-gray-500 text-sm mt-6">
+                            <a href="{% url 'accounts:login' %}" class="text-amber-400 hover:underline">بازگشت به
+                                ورود</a>
+                        </p>
+                    </div>
+
+                    <!-- ===== تأیید OTP ===== -->
+                {% elif page == 'otp_verify' %}
+                    <div class="min-h-[520px] flex flex-col justify-center">
+                        <h2 class="text-white text-xl font-bold mb-2">تأیید کد</h2>
+                        <p class="text-gray-400 text-sm mb-6">کد ارسال شده به شماره موبایل را وارد کنید.</p>
+
+                        <form method="post" class="space-y-4">
+                            {% csrf_token %}
+                            <div>
+                                <label class="block text-gray-400 text-sm mb-1">کد ۶ رقمی</label>
+                                <input type="text"
+                                       name="code"
+                                       maxlength="6"
+                                       autocomplete="one-time-code"
+                                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm text-center tracking-[0.5em] focus:outline-none focus:border-amber-400 transition"
+                                       placeholder="● ● ● ● ● ●">
+                            </div>
+
+                            <button type="submit"
+                                    class="w-full bg-amber-400 hover:bg-amber-300 text-gray-950 font-bold py-2.5 rounded-lg transition text-sm">
+                                تأیید و ورود
+                            </button>
+                        </form>
+
+                        <p class="text-center text-gray-500 text-sm mt-4">
+                            کد دریافت نکردید؟
+                            <a href="{% url 'accounts:otp_request' %}" class="text-amber-400 hover:underline">ارسال
+                                مجدد</a>
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            const track = document.getElementById('tab-track');
+            const indicator = document.getElementById('tab-indicator');
+            const tabEmail = document.getElementById('tab-email');
+            const tabOtp = document.getElementById('tab-otp');
+
+            if (!track || !indicator || !tabEmail || !tabOtp) return;
+
+            if (tab === 'email') {
+                track.style.transform = 'translateX(0)';
+                indicator.style.right = '4px';
+                indicator.style.left = '50%';
+                indicator.style.left = 'auto';
+
+                tabEmail.classList.remove('text-gray-400');
+                tabEmail.classList.add('text-amber-400');
+
+                tabOtp.classList.remove('text-amber-400');
+                tabOtp.classList.add('text-gray-400');
+            } else {
+                track.style.transform = 'translateX(50%)';
+                indicator.style.right = '50%';
+                indicator.style.left = '4px';
+                indicator.style.left = 'auto';
+
+                tabOtp.classList.remove('text-gray-400');
+                tabOtp.classList.add('text-amber-400');
+
+                tabEmail.classList.remove('text-amber-400');
+                tabEmail.classList.add('text-gray-400');
+            }
+        }
+
+        (function () {
+            const btn = document.getElementById('send-otp-btn');
+            const countdownEl = document.getElementById('countdown');
+            if (!btn || !countdownEl) return;
+
+            let seconds = parseInt(countdownEl.textContent, 10);
+            btn.disabled = true;
+
+            const timer = setInterval(() => {
+                seconds--;
+                countdownEl.textContent = seconds;
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerHTML = 'ارسال کد';
+                }
+            }, 1000);
+        })();
+    </script>
+{% endblock %}

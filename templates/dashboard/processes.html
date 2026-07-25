@@ -1,0 +1,57 @@
+{% extends "dashboard/base_dashboard.html" %}
+
+{% block dashboard_title %}فرایندها | زنجیره{% endblock %}
+{% block page_heading %}فرایندهای تعریف‌شده{% endblock %}
+{% block page_subtitle %}تعریف دستی فرایندها و تعرفه دستگاه‌ها{% endblock %}
+
+{% block dashboard_content %}
+<section class="glass-card rounded-3xl p-4 p-lg-5">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="section-title mb-0">لیست فرایندها</h2>
+        <button class="btn text-white rounded-2xl px-4 py-2 border-0" style="background: linear-gradient(90deg,#2563eb,#1e40af);">
+            + افزودن فرایند
+        </button>
+    </div>
+
+    <div class="content-scroll">
+        <table class="table table-dark-custom align-middle">
+            <thead>
+                <tr>
+                    <th>ردیف</th>
+                    <th>نام فرایند</th>
+                    <th>دستگاه</th>
+                    <th>تعرفه</th>
+                    <th>واحد</th>
+                    <th>وضعیت</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>تراشکاری</td>
+                    <td>دستگاه شماره 2</td>
+                    <td>1,500 تومان</td>
+                    <td>ساعتی</td>
+                    <td><span class="badge-soft badge-success">فعال</span></td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>فرزکاری</td>
+                    <td>دستگاه شماره 1</td>
+                    <td>2,200 تومان</td>
+                    <td>ساعتی</td>
+                    <td><span class="badge-soft badge-success">فعال</span></td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>کنترل کیفیت</td>
+                    <td>ایستگاه QC</td>
+                    <td>700 تومان</td>
+                    <td>موردی</td>
+                    <td><span class="badge-soft badge-info">ثابت</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

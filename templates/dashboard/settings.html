@@ -1,0 +1,38 @@
+{% extends "dashboard/base_dashboard.html" %}
+
+{% block dashboard_title %}تنظیمات | زنجیره{% endblock %}
+{% block page_heading %}تنظیمات{% endblock %}
+
+{% block dashboard_content %}
+    <div class="row g-4">
+        <!-- پنل تم -->
+        <div class="col-12 col-lg-6">
+            <div class="glass-card rounded-3xl p-4 h-100">
+                <h2 class="section-title mb-4">ظاهر برنامه</h2>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="mini-label">حالت نمایش</div>
+                        <div class="mini-value" id="themeLabel">تغییر تم (لایت / دارک)</div>
+                    </div>
+                    <button id="themeToggle"
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition">
+                        تغییر تم
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- اطلاعات کارگاه -->
+        <div class="col-12 col-lg-6">
+            <div class="glass-card rounded-3xl p-4 h-100">
+                <h2 class="section-title mb-4">اطلاعات کارگاه</h2>
+                <div class="space-y-3">
+                    <div>
+                        <div class="mini-label mb-1">نام کارگاه</div>
+                        <div class="mini-value">کارگاه نمونه</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
