@@ -30,9 +30,9 @@ urlpatterns = [
     path('orders/api/activity/<int:activity_id>/update/', views.activity_update_api, name='activity-update-api'),
     path('orders/api/activity/<int:activity_id>/delete/', views.activity_delete_api, name='activity-delete-api'),
     #     order in modal
-    path('api/order/<int:order_id>/attachments/', views.order_attachments_api, name='order_attachments_api'),
-    path('api/order/<int:order_id>/attachment/add/', views.order_attachment_add_api, name='order_attachment_add_api'),
-    path('api/attachment/<int:attachment_id>/delete/', views.order_attachment_delete_api,
+    path('orders/api/order/<int:order_id>/attachments/', views.order_attachments_api, name='order_attachments_api'),
+    path('orders/api/order/<int:order_id>/attachment/add/', views.order_attachment_add_api, name='order_attachment_add_api'),
+    path('orders/api/attachment/<int:attachment_id>/delete/', views.order_attachment_delete_api,
          name='order_attachment_delete_api'),
 
 ]
