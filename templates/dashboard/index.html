@@ -79,7 +79,9 @@
             <section class="panel">
                 <div class="panel__header panel__header--between">
                     <h3 class="panel-title-sm">ورکشاپ‌های تحت نظر</h3>
-                    <button class="primary-btn" type="button" onclick="openWorkshopModal()">افزودن ورکشاپ</button>
+                    <button class="primary-btn" type="button" onclick="openWorkshopModal()">
+                        افزودن ورکشاپ
+                    </button>
                 </div>
 
                 <div class="table-wrap">
@@ -108,9 +110,37 @@
                                 </td>
                                 <td>{{ membership.workshop.code|default:"-" }}</td>
                                 <td>{{ membership.workshop.created_at|date:"Y/m/d" }}</td>
-                                <td>
-                                    <button class="table-action" type="button">⋮</button>
+
+                                <td class="table-actions-cell">
+                                    <div class="row-actions">
+                                        <button
+                                                class="table-action"
+                                                type="button"
+                                                onclick="toggleWorkshopMenu('menu-{{ membership.id }}')"
+                                        >
+                                            ⋮
+                                        </button>
+
+                                        <div class="row-actions__menu" id="menu-{{ membership.id }}">
+                                            <a href="{% url 'orders:dashboard' membership.workshop.id %}"
+                                               class="row-actions__item">کارتابل</a>
+                                            {% if membership.get_role_display == "مالک" %}
+                                                <a href="#" class="row-actions__item"
+                                                   onclick="openEditWorkshopModal(
+                                                           '{{ membership.workshop.id }}',
+                                                           '{{ membership.workshop.name|escapejs }}',
+                                                           '{{ membership.workshop.national_code|default:""|escapejs }}',
+                                                           '{{ membership.workshop.address|default:""|escapejs }}',
+                                                           ); return false;">
+                                                    ویرایش
+                                                </a>
+                                                <a href="#" class="row-actions__item">غیرفعالسازی</a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </td>
+
+
                             </tr>
                         {% empty %}
                             <tr>
@@ -172,49 +202,6 @@
             </div>
         </section>
 
-    {% elif active_tab == 'workshops' %}
-        <section class="panel">
-            <div class="panel__header panel__header--between">
-                <h3 class="panel-title-sm">کارگاه‌ها</h3>
-                <button class="primary-btn" type="button" onclick="openWorkshopModal()">افزودن ورکشاپ</button>
-            </div>
-
-            <div class="table-wrap">
-                <table class="custom-table">
-                    <thead>
-                    <tr>
-                        <th>نام کارگاه</th>
-                        <th>کد/شناسه</th>
-                        <th>آدرس</th>
-                        <th>وضعیت</th>
-                        <th>تاریخ ایجاد</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for workshop in owned_workshops %}
-                        <tr>
-                            <td>{{ workshop.name }}</td>
-                            <td>{{ workshop.code|default:workshop.national_code|default:"-" }}</td>
-                            <td>{{ workshop.address|default:"-" }}</td>
-                            <td>
-                                {% if workshop.is_active %}
-                                    <span class="status-badge status-badge--success">فعال</span>
-                                {% else %}
-                                    <span class="status-badge status-badge--danger">غیرفعال</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ workshop.created_at|date:"Y/m/d" }}</td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="5" class="empty-state">هیچ کارگاهی یافت نشد.</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
     {% elif active_tab == 'checklists' %}
         <section class="panel">
             <div class="panel__header">
@@ -241,6 +228,7 @@
     {% endif %}
 
     {% include 'dashboard/partials/profile_edit_modal.html' %}
+    {% include 'dashboard/partials/workshop_edit_modal.html' %}
     {% include 'dashboard/partials/create_workshop_modal.html' %}
     {% include 'dashboard/partials/toast_messages.html' %}
 {% endblock %}
@@ -271,19 +259,104 @@
             document.body.classList.remove('modal-open');
         }
 
+
+        function openEditWorkshopModal(id, name, nationalCode, address, code) {
+            const modal = document.getElementById('editWorkshopModal');
+            const form = document.getElementById('editWorkshopForm');
+
+            form.action = `/account/workshops/${id}/edit/`;
+            document.getElementById('editWorkshopName').value = name || '';
+            document.getElementById('editWorkshopNationalCode').value = nationalCode || '';
+            document.getElementById('editWorkshopAddress').value = address || '';
+
+            if (modal) modal.classList.add('show');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeEditWorkshopModal() {
+            const modal = document.getElementById('editWorkshopModal');
+            if (modal) modal.classList.remove('show');
+            document.body.classList.remove('modal-open');
+        }
+
+
         document.addEventListener('click', function (e) {
             const profileModal = document.getElementById('profileEditModal');
             const workshopModal = document.getElementById('createWorkshopModal');
+            const editWorkshopModal = document.getElementById('editWorkshopModal');
 
             if (e.target === profileModal) closeProfileModal();
             if (e.target === workshopModal) closeWorkshopModal();
+
+            if (!e.target.closest('.row-actions') && !e.target.closest('.row-actions__menu')) {
+                document.querySelectorAll('.row-actions__menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                    if (menu._cleanup) menu._cleanup();
+                });
+            }
+            if (e.target === editWorkshopModal) closeEditWorkshopModal();
+
         });
 
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 closeProfileModal();
                 closeWorkshopModal();
+                closeEditWorkshopModal();
+                closeDeactivateWorkshopModal();
+
+                document.querySelectorAll('.row-actions__menu').forEach(menu => {
+                    menu.classList.remove('show');
+                });
             }
         });
+
+        function toggleWorkshopMenu(menuId) {
+            document.querySelectorAll('.row-actions__menu.show').forEach(m => {
+                if (m.id !== menuId) {
+                    m.classList.remove('show');
+                    if (m._cleanup) m._cleanup();
+                }
+            });
+
+            const menu = document.getElementById(menuId);
+            if (!menu) return;
+
+            if (menu.classList.contains('show')) {
+                menu.classList.remove('show');
+                if (menu._cleanup) menu._cleanup();
+                return;
+            }
+
+            const btn = menu.previousElementSibling || menu._originalPrev;
+            if (!btn) return;
+            const rect = btn.getBoundingClientRect();
+
+            // ذخیره موقعیت اصلی
+            const placeholder = document.createComment('menu-placeholder:' + menuId);
+            menu.parentNode.insertBefore(placeholder, menu);
+            menu._placeholder = placeholder;
+
+            document.body.appendChild(menu);
+            menu.style.cssText = `position:fixed;z-index:99999;top:${rect.bottom + 6}px;right:${window.innerWidth - rect.right}px;left:auto;`;
+            menu.classList.add('show');
+
+            const menuH = menu.offsetHeight || 120;
+            if (window.innerHeight - rect.bottom < menuH + 10) {
+                menu.style.top = (rect.top - menuH - 6) + 'px';
+            }
+
+            menu._cleanup = () => {
+                menu.style.cssText = '';
+                menu.classList.remove('show');
+                if (menu._placeholder && menu._placeholder.parentNode) {
+                    menu._placeholder.parentNode.insertBefore(menu, menu._placeholder);
+                    menu._placeholder.parentNode.removeChild(menu._placeholder);
+                }
+                menu._placeholder = null;
+            };
+        }
+
+
     </script>
 {% endblock %}

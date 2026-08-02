@@ -1,3 +1,4 @@
+{#base dashboard#}
 {% load static %}
 <!DOCTYPE html>
 <html lang="fa" dir="rtl" data-theme="dark">
@@ -40,11 +41,11 @@
                 <span class="nav-label">کاربران</span>
             </a>
 
-{#            <a href="{% url 'accounts:dashboard' %}?tab=workshops"#}
-{#               class="nav-item {% if active_tab == 'workshops' %}active{% endif %}">#}
-{#                <span class="nav-icon">🏭</span>#}
-{#                <span class="nav-label">کارگاه‌ها</span>#}
-{#            </a>#}
+            {#            <a href="{% url 'accounts:dashboard' %}?tab=workshops"#}
+            {#               class="nav-item {% if active_tab == 'workshops' %}active{% endif %}">#}
+            {#                <span class="nav-icon">🏭</span>#}
+            {#                <span class="nav-label">کارگاه‌ها</span>#}
+            {#            </a>#}
 
             <a href="{% url 'accounts:dashboard' %}?tab=checklists"
                class="nav-item {% if active_tab == 'checklists' %}active{% endif %}">

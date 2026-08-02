@@ -1,0 +1,121 @@
+{% extends 'orders/_dashboard_base.html' %}
+{% load static %}
+
+{% block tab_content %}
+
+    {% if show_created %}
+        <div class="alert alert-success">نوع خدمت با موفقیت ثبت شد.</div>
+    {% endif %}
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-icon">📋</span>
+            <div class="kpi-value">{{ total_orders }}</div>
+            <div class="kpi-label">کل سفارشات</div>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-icon">👥</span>
+            <div class="kpi-value">{{ total_customers }}</div>
+            <div class="kpi-label">مشتریان</div>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-icon">📥</span>
+            <div class="kpi-value">{{ status_counts.reception|default:0 }}</div>
+            <div class="kpi-label">در پذیرش</div>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-icon">🔧</span>
+            <div class="kpi-value">{{ status_counts.technical|default:0 }}</div>
+            <div class="kpi-label">در فنی</div>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-icon">💰</span>
+            <div class="kpi-value">{{ status_counts.accounting|default:0 }}</div>
+            <div class="kpi-label">در حسابداری</div>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-icon">✅</span>
+            <div class="kpi-value">{{ status_counts.done|default:0 }}</div>
+            <div class="kpi-label">تکمیل‌شده</div>
+        </div>
+    </div>
+
+    <!-- Service Types -->
+    <div class="section-card">
+        <h3>انواع خدمات</h3>
+
+        <form method="post" class="service-form" id="service-form">
+            {% csrf_token %}
+            <input type="hidden" id="service-id" name="service_id">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>نام خدمت</label>
+                    <input type="text" name="name" id="service-name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>نام دستگاه</label>
+                    <input type="text" name="machine_name" id="service-machine" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>واحد</label>
+                    <select name="unit" id="service-unit" class="form-control" required>
+                        <option value="">انتخاب کنید</option>
+                        {% for code, label in form.fields.unit.choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>مبلغ پایه (ریال)</label>
+                    <input type="number" name="base_price" id="service-price" class="form-control" required>
+                </div>
+                <div class="form-group form-group--btn">
+                    <button type="submit" class="btn-primary" id="btn-submit">افزودن</button>
+                </div>
+            </div>
+            <div class="form-error" id="form-error" style="display:none;color:red;"></div>
+        </form>
+        <div class="orders-table-wrap">
+
+            <table class="service-table">
+                <thead>
+                <tr>
+                    <th>نام خدمت</th>
+                    <th>دستگاه</th>
+                    <th>واحد</th>
+                    <th>مبلغ پایه</th>
+                    <th>تاریخ ثبت</th>
+                    <th>عملیات</th>
+                </tr>
+                </thead>
+                <tbody id="service-tbody">
+                {% for svc in service_types %}
+                    <tr data-id="{{ svc.id }}">
+                        <td>{{ svc.name }}</td>
+                        <td>{{ svc.machine_name }}</td>
+                        <td>{{ svc.get_unit_display }}</td>
+                        <td class="text-end">{{ svc.base_price|floatformat:0 }} ریال</td>
+                        <td>{{ svc.created_at|date:"Y/m/d" }}</td>
+                        <td>
+                            <button class="btn-icon btn-edit" data-id="{{ svc.id }}"
+                                    data-name="{{ svc.name }}"
+                                    data-machine="{{ svc.machine_name }}"
+                                    data-unit="{{ svc.unit }}"
+                                    data-price="{{ svc.base_price }}">✏️
+                            </button>
+                            <button class="btn-icon btn-delete" data-id="{{ svc.id }}">🗑️</button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-state">هنوز خدمتی ثبت نشده.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="{% static 'orders/js/management.js' %}"></script>
+{% endblock %}

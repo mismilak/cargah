@@ -1,17 +1,18 @@
 import jdatetime
+from django.conf import settings
 from django.db import models, transaction
 
 
 class Customer(models.Model):
     workshop = models.ForeignKey('accounts.Workshop', on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
+    customer_workshop_name = models.CharField(max_length=200, default="None")
     phone = models.CharField(max_length=20, blank=True)
     is_legal = models.BooleanField(default=False)  # حقوقی یا حقیقی
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
     def total_debt(self):
-        """جمع بدهی فعال مشتری"""
         from django.db.models import Sum
         from billing.models import Invoice
         result = Invoice.objects.filter(
@@ -60,7 +61,7 @@ class ServiceType(models.Model):
     ]
     workshop = models.ForeignKey('accounts.Workshop', on_delete=models.CASCADE)
     name = models.CharField(max_length=200, verbose_name="نام خدمت/عملیات")
-    machine_name = models.CharField(max_length=200, null=True, blank=True, verbose_name="نام دستگاه (اختیاری)")
+    machine_name = models.CharField(max_length=200)
     unit = models.CharField(max_length=20, choices=UNIT_CHOICES, verbose_name="واحد اندازه‌گیری")
     base_price = models.DecimalField(max_digits=12, decimal_places=0, verbose_name="مبلغ پایه")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -98,7 +99,7 @@ class Order(models.Model):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    delivered_at = models.DateTimeField()
+    delivered_at = models.DateTimeField(null=True, blank=True)
 
     code = models.CharField(
         max_length=30,

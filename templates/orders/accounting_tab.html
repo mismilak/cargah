@@ -1,0 +1,33 @@
+{% extends "orders/_dashboard_base.html" %}
+
+{% block tab_content %}
+    <div class="tab-panel">
+        <div class="panel-header"><h2>حسابداری</h2></div>
+        <div class="orders-table-wrap">
+            {% if orders %}
+                <table class="orders-table">
+                    <thead>
+                    <tr>
+                        <th>کد</th>
+                        <th>مشتری</th>
+                        <th>تاریخ</th>
+                        <th>وضعیت</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for order in orders %}
+                        <tr>
+                            <td>{{ order.code }}</td>
+                            <td>{{ order.customer.name }}</td>
+                            <td>{{ order.created_at|date:"Y/m/d" }}</td>
+                            <td>{{ order.get_status_display }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="empty-state">سفارشی در حسابداری وجود ندارد.</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

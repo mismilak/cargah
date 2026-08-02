@@ -1,9 +1,11 @@
 import random
 import string
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 def generate_workshop_code():
@@ -73,16 +75,38 @@ class User(AbstractUser):
 
 
 class OTPCode(models.Model):
+    PURPOSE_CHOICES = [
+        ('workshop_deactivation', 'غیرفعال‌سازی کارگاه'),
+    ]
+
     phone = models.CharField(max_length=20)
     code = models.CharField(max_length=6)
+    purpose = models.CharField(max_length=50, choices=PURPOSE_CHOICES, null=True, blank=True)
+    reference_id = models.PositiveIntegerField(null=True, blank=True)  # مثلا workshop.id
     created_at = models.DateTimeField(auto_now_add=True)
     is_used = models.BooleanField(default=False)
+    purpose = models.CharField(max_length=50, null=True, blank=True)
+    reference_id = models.PositiveIntegerField(null=True, blank=True)
 
     @classmethod
-    def generate(cls, phone):
-        cls.objects.filter(phone=phone, is_used=False).delete()
+    def generate(cls, phone, purpose=None, reference_id=None):
+        cls.objects.filter(
+            phone=phone,
+            purpose=purpose,
+            reference_id=reference_id,
+            is_used=False
+        ).delete()
+
         code = str(random.randint(100000, 999999))
-        return cls.objects.create(phone=phone, code=code)
+        return cls.objects.create(
+            phone=phone,
+            code=code,
+            purpose=purpose,
+            reference_id=reference_id
+        )
 
     def __str__(self):
         return f"{self.phone} - {self.code}"
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=2)

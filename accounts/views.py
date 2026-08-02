@@ -1,19 +1,16 @@
-from django.contrib.auth import logout, get_user_model
-
-from .forms import UserRegisterForm, UserLoginForm
-
-User = get_user_model()
 from datetime import timedelta
-from django.contrib.auth import login
-from django.utils import timezone
-
-from .models import User, OTPCode
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
-from accounts.models import Workshop, WorkshopMembership
+from .forms import UserRegisterForm, UserLoginForm
+from .models import Workshop, WorkshopMembership, OTPCode
+
+User = get_user_model()
 
 
 def register_view(request):
@@ -35,15 +32,15 @@ def register_view(request):
     context = {
         'form': form,
         'page': 'register',
-        'active_tab': "dashboard",
-
+        'active_tab': 'dashboard',
     }
     return render(request, 'accounts/auth.html', context)
 
 
 def login_view(request):
     if request.user.is_authenticated:
-        return render(request, 'dashboard/index.html')
+        return redirect('accounts:dashboard')
+
     form = UserLoginForm(request, data=request.POST or None)
 
     if request.method == 'POST':
@@ -62,6 +59,7 @@ def login_view(request):
     return render(request, 'accounts/auth.html', context)
 
 
+@require_POST
 def logout_view(request):
     logout(request)
     messages.success(request, 'با موفقیت خارج شدید.')
@@ -97,10 +95,15 @@ def otp_request_view(request):
                 'otp_cooldown': otp_cooldown
             })
 
-        last_otp = OTPCode.objects.filter(phone=phone).order_by('-created_at').first()
+        last_otp = OTPCode.objects.filter(
+            phone=phone,
+            purpose='login'
+        ).order_by('-created_at').first()
+
         if last_otp:
             diff = timezone.now() - last_otp.created_at
             cooldown_seconds = 60
+
             if diff.total_seconds() < cooldown_seconds:
                 otp_cooldown = cooldown_seconds - int(diff.total_seconds())
                 messages.warning(request, 'لطفاً کمی صبر کنید و دوباره تلاش کنید.')
@@ -109,7 +112,7 @@ def otp_request_view(request):
                     'otp_cooldown': otp_cooldown
                 })
 
-        otp = OTPCode.generate(phone)
+        otp = OTPCode.generate(phone=phone, purpose='login')
         send_otp_sms(phone, otp.code)
 
         request.session['otp_phone'] = phone
@@ -135,6 +138,7 @@ def otp_verify_view(request):
         otp = OTPCode.objects.filter(
             phone=phone,
             code=code,
+            purpose='login',
             is_used=False
         ).order_by('-created_at').first()
 
@@ -160,7 +164,7 @@ def otp_verify_view(request):
         login(request, user)
         request.session.pop('otp_phone', None)
         messages.success(request, 'با موفقیت وارد شدید.')
-        return redirect('home')
+        return redirect('accounts:dashboard')
 
     return render(request, 'accounts/auth.html', {
         'page': 'otp_verify'
@@ -183,7 +187,7 @@ def dashboard_index(request):
             user.save()
 
             messages.success(request, 'مشخصات شما با موفقیت بروزرسانی شد.')
-            return redirect(f"{request.path}?tab=dashboard")
+            return redirect(f'{request.path}?tab=dashboard')
 
         elif action == 'create_workshop':
             name = request.POST.get('name', '').strip()
@@ -192,13 +196,25 @@ def dashboard_index(request):
 
             if not name:
                 messages.error(request, 'نام ورکشاپ الزامی است.')
-                return redirect(f"{request.path}?tab=dashboard")
+                return redirect(f'{request.path}?tab=dashboard')
+
+            if len(name) < 5:
+                messages.error(request, 'نام ورکشاپ باید حداقل ۵ کاراکتر باشد.')
+                return redirect(f'{request.path}?tab=dashboard')
+
+            if not address:
+                messages.error(request, 'آدرس ورکشاپ الزامی است.')
+                return redirect(f'{request.path}?tab=dashboard')
+
+            if len(address) < 5:
+                messages.error(request, 'آدرس ورکشاپ باید حداقل ۵ کاراکتر باشد.')
+                return redirect(f'{request.path}?tab=dashboard')
 
             workshop = Workshop.objects.create(
                 owner=user,
                 name=name,
                 national_code=national_code if national_code else None,
-                address=address if address else None,
+                address=address,
             )
 
             WorkshopMembership.objects.create(
@@ -209,7 +225,7 @@ def dashboard_index(request):
             )
 
             messages.success(request, f'ورکشاپ "{workshop.name}" با موفقیت ایجاد شد.')
-            return redirect(f"{request.path}?tab=dashboard")
+            return redirect(f'{request.path}?tab=dashboard')
 
     workshop_memberships = (
         WorkshopMembership.objects
@@ -234,3 +250,122 @@ def dashboard_index(request):
         'active_tab': active_tab,
     }
     return render(request, 'dashboard/index.html', context)
+
+
+@login_required
+@require_POST
+def edit_workshop_view(request, workshop_id):
+    workshop = get_object_or_404(Workshop, id=workshop_id, owner=request.user)
+
+    name = request.POST.get('name', '').strip()
+    national_code = request.POST.get('national_code', '').strip()
+    address = request.POST.get('address', '').strip()
+
+    if not name:
+        messages.error(request, 'نام کارگاه الزامی است.')
+        return redirect('accounts:dashboard')
+
+    if len(name) < 5:
+        messages.error(request, 'نام کارگاه باید حداقل ۵ کاراکتر باشد.')
+        return redirect('accounts:dashboard')
+
+    if not address:
+        messages.error(request, 'آدرس کارگاه الزامی است.')
+        return redirect('accounts:dashboard')
+
+    if len(address) < 5:
+        messages.error(request, 'آدرس کارگاه باید حداقل ۵ کاراکتر باشد.')
+        return redirect('accounts:dashboard')
+
+    workshop.name = name
+    workshop.national_code = national_code if national_code else None
+    workshop.address = address
+    workshop.save()
+
+    messages.success(request, f'اطلاعات کارگاه "{workshop.name}" با موفقیت ویرایش شد.')
+    return redirect('accounts:dashboard')
+
+
+@login_required
+@require_POST
+def send_workshop_deactivation_code_view(request, workshop_id):
+    workshop = get_object_or_404(
+        Workshop,
+        id=workshop_id,
+        owner=request.user
+    )
+
+    if not request.user.phone:
+        messages.error(request, 'شماره موبایل کاربر ثبت نشده است.')
+        return redirect('accounts:dashboard')
+
+    if not workshop.is_active:
+        messages.warning(request, 'این کارگاه قبلاً غیرفعال شده است.')
+        return redirect('accounts:dashboard')
+
+    last_otp = OTPCode.objects.filter(
+        phone=request.user.phone,
+        purpose='workshop_deactivation',
+        reference_id=workshop.id
+    ).order_by('-created_at').first()
+
+    if last_otp:
+        diff = timezone.now() - last_otp.created_at
+        cooldown_seconds = 60
+
+        if diff.total_seconds() < cooldown_seconds:
+            messages.warning(request, 'لطفاً کمی صبر کنید و دوباره تلاش کنید.')
+            return redirect('accounts:dashboard')
+
+    otp = OTPCode.generate(
+        phone=request.user.phone,
+        purpose='workshop_deactivation',
+        reference_id=workshop.id
+    )
+
+    send_otp_sms(request.user.phone, otp.code)
+
+    messages.success(request, 'کد تأیید برای غیرفعال‌سازی کارگاه ارسال شد.')
+    return redirect('accounts:dashboard')
+
+
+@login_required
+@require_POST
+def confirm_workshop_deactivation_view(request, workshop_id):
+    workshop = get_object_or_404(
+        Workshop,
+        id=workshop_id,
+        owner=request.user
+    )
+
+    code = request.POST.get('otp_code', '').strip()
+
+    if not code:
+        messages.error(request, 'کد تأیید را وارد کنید.')
+        return redirect('accounts:dashboard')
+
+    otp = OTPCode.objects.filter(
+        phone=request.user.phone,
+        code=code,
+        purpose='workshop_deactivation',
+        reference_id=workshop.id,
+        is_used=False
+    ).order_by('-created_at').first()
+
+    if not otp:
+        messages.error(request, 'کد وارد شده نامعتبر است.')
+        return redirect('accounts:dashboard')
+
+    expire_minutes = 2
+    if timezone.now() > otp.created_at + timedelta(minutes=expire_minutes):
+        messages.error(request, 'کد منقضی شده است.')
+        return redirect('accounts:dashboard')
+
+    otp.is_used = True
+    otp.save()
+
+    workshop.is_active = False
+    workshop.save()
+
+    messages.success(request, f'کارگاه "{workshop.name}" با موفقیت غیرفعال شد.')
+    return redirect('accounts:dashboard')
