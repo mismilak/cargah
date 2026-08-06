@@ -1,87 +1,27 @@
 (function () {
     const form = document.getElementById('service-form');
     const tbody = document.getElementById('service-tbody');
-    const errorDiv = document.getElementById('form-error');
     const serviceIdInput = document.getElementById('service-id');
     const btnSubmit = document.getElementById('btn-submit');
 
-    // Format number با جداکننده فارسی
-    function formatPrice(num) {
-        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '،');
-    }
+    const workshopId = window.location.pathname.match(/\/(\d+)\//)?.[1];
 
-    // Clear form
-    function clearForm() {
-        serviceIdInput.value = '';
-        document.getElementById('service-name').value = '';
-        document.getElementById('service-machine').value = '';
-        document.getElementById('service-unit').value = '';
-        document.getElementById('service-price').value = '';
-        btnSubmit.textContent = 'افزودن';
-        errorDiv.style.display = 'none';
-    }
-
-    // Submit (افزودن یا ویرایش)
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(form);
-        const serviceId = serviceIdInput.value;
-
-        try {
-            const res = await fetch(window.location.pathname, {
-                method: 'POST',
-                body: formData,
-                headers: {'X-Requested-With': 'XMLHttpRequest'}
-            });
-            const data = await res.json();
-            if (res.ok) {
-                if (serviceId) {
-                    // ویرایش
-                    const row = tbody.querySelector(`tr[data-id="${serviceId}"]`);
-                    row.querySelector('td:nth-child(1)').textContent = data.name;
-                    row.querySelector('td:nth-child(2)').textContent = data.machine_name;
-                    row.querySelector('td:nth-child(3)').textContent = data.unit_display;
-                    row.querySelector('td:nth-child(4)').innerHTML = `${formatPrice(data.base_price)} ریال`;
-                    row.querySelector('.btn-edit').dataset.name = data.name;
-                    row.querySelector('.btn-edit').dataset.machine = data.machine_name;
-                    row.querySelector('.btn-edit').dataset.unit = data.unit;
-                    row.querySelector('.btn-edit').dataset.price = data.base_price;
-                } else {
-                    // افزودن
-                    const newRow = `
-            <tr data-id="${data.id}">
-              <td>${data.name}</td>
-              <td>${data.machine_name}</td>
-              <td>${data.unit_display}</td>
-              <td class="text-end">${formatPrice(data.base_price)} ریال</td>
-              <td>${data.created_at}</td>
-              <td>
-                <button class="btn-icon btn-edit" data-id="${data.id}"
-                        data-name="${data.name}"
-                        data-machine="${data.machine_name}"
-                        data-unit="${data.unit}"
-                        data-price="${data.base_price}">✏️</button>
-                <button class="btn-icon btn-delete" data-id="${data.id}">🗑️</button>
-              </td>
-            </tr>
-          `;
-                    tbody.insertAdjacentHTML('afterbegin', newRow);
-                }
-                clearForm();
-            } else {
-                errorDiv.textContent = data.error || 'خطایی رخ داد';
-                errorDiv.style.display = 'block';
-            }
-        } catch (err) {
-            errorDiv.textContent = 'خطا در ارتباط با سرور';
-            errorDiv.style.display = 'block';
+    form.addEventListener('submit', (e) => {
+        if (form.dataset.submitting) {
+            e.preventDefault();
+            return;
         }
+        const serviceId = serviceIdInput.value;
+        form.action = serviceId
+            ? `/${workshopId}/management/edit/${serviceId}/`
+            : '';
+        form.dataset.submitting = '1';
     });
 
-    // Edit
     tbody.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-edit')) {
-            const btn = e.target;
+        const btn = e.target;
+
+        if (btn.classList.contains('btn-edit')) {
             serviceIdInput.value = btn.dataset.id;
             document.getElementById('service-name').value = btn.dataset.name;
             document.getElementById('service-machine').value = btn.dataset.machine;
@@ -89,29 +29,75 @@
             document.getElementById('service-price').value = btn.dataset.price;
             btnSubmit.textContent = 'ذخیره';
         }
-    });
 
-    // Delete
-    tbody.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('btn-delete')) {
+        if (btn.classList.contains('btn-delete')) {
             if (!confirm('آیا از حذف این خدمت اطمینان دارید؟')) return;
-            const id = e.target.dataset.id;
-            try {
-                const res = await fetch(`${window.location.pathname}delete/${id}/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                if (res.ok) {
-                    tbody.querySelector(`tr[data-id="${id}"]`).remove();
-                } else {
-                    alert('خطا در حذف');
-                }
-            } catch (err) {
-                alert('خطا در ارتباط با سرور');
-            }
+            const f = document.createElement('form');
+            f.method = 'POST';
+            f.action = `/${workshopId}/management/delete/${btn.dataset.id}/`;
+            f.innerHTML = `<input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('[name=csrfmiddlewaretoken]').value}">`;
+            document.body.appendChild(f);
+            f.submit();
         }
     });
 })();
+
+
+const URLS = {
+    orderDetail: "{% url 'orders:order_detail' workshop.id 0 %}".replace('/0/', '/'),
+    orderAction: "{% url 'orders:order_action' workshop.id 0 %}".replace('/0/', '/'),
+};
+
+document.querySelectorAll('.order-row').forEach(row => {
+    row.addEventListener('click', () => openOrderModal(row.dataset.id));
+});
+
+function openOrderModal(orderId) {
+    fetch(URLS.orderDetail + orderId + '/')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('modal-title').textContent = 'سفارش ' + data.code;
+            document.getElementById('modal-body').innerHTML =
+                `<b>مشتری:</b> ${data.customer}<br>
+                 <b>وضعیت:</b> ${data.status_display}<br>
+                 <b>تاریخ:</b> ${data.created_at}<br>
+                 <b>توضیحات:</b> ${data.description || '—'}`;
+            buildActions(orderId, data);
+            const modal = document.getElementById('order-modal');
+            modal.style.display = 'flex';
+        });
+}
+
+function buildActions(orderId, data) {
+    const wrap = document.getElementById('modal-actions');
+    wrap.innerHTML = '';
+    const post = (action, label, style) => {
+        const f = document.createElement('form');
+        f.method = 'post';
+        f.action = URLS.orderAction + orderId + '/';
+        f.innerHTML = `<input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
+                       <input type="hidden" name="action" value="${action}">
+                       <button type="submit" class="btn-primary" style="${style}">${label}</button>`;
+        wrap.appendChild(f);
+    };
+    if (!data.is_stopped && !data.is_archived) {
+        post('reception', '📥 پذیرش', '');
+        post('technical', '🔧 فنی', '');
+        post('accounting', '💰 حسابداری', '');
+        post('done', '✅ تکمیل', 'background:#22c55e;');
+        post('stop', '⛔ توقف', 'background:#ef4444;');
+    }
+    if (!data.is_archived) {
+        post('archive', '📦 آرشیو', 'background:#64748b;');
+    }
+}
+
+function closeOrderModal() {
+    document.getElementById('order-modal').style.display = 'none';
+}
+
+function getCookie(name) {
+    return document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith(name + '='))?.split('=')[1] || '';
+}
+

@@ -863,3 +863,45 @@ body {
     color: var(--text-muted);
 }
 
+
+/* Tab Navigation */
+.tab-nav {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border-color, #e2e8f0);
+    margin-bottom: 16px;
+}
+
+.tab-btn {
+    padding: 8px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-muted, #64748b);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn.active {
+    color: var(--primary, #3b82f6);
+    border-bottom-color: var(--primary, #3b82f6);
+    font-weight: 600;
+}
+
+.tab-btn:hover:not(.active) {
+    color: var(--text, #1e293b);
+}
+
+/* Orders sub-sections */
+#tab-orders h4 {
+    margin: 20px 0 8px;
+    font-size: 14px;
+    color: var(--text-muted, #64748b);
+    font-weight: 600;
+}
+
+#tab-orders h4:first-child {
+    margin-top: 0;
+}

@@ -1,5 +1,6 @@
 # orders/admin.py
 from django.contrib import admin
+
 from .models import (
     Customer, ServiceType, OrderCodeSequence, Order,
     OrderAttachment, OrderActivity, OrderActivityAttachment,
@@ -38,7 +39,7 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(ServiceType)
 class ServiceTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'workshop', 'machine_name', 'unit', 'base_price', 'created_at')
+    list_display = ('id', 'name', 'workshop', 'machine_name', 'unit', 'base_price', 'created_at')
     list_filter = ('workshop', 'unit')
     search_fields = ('name', 'machine_name')
     readonly_fields = ('created_at',)

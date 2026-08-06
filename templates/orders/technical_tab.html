@@ -10,6 +10,7 @@
                     <tr>
                         <th>کد</th>
                         <th>مشتری</th>
+                        <th>ثبت توسط</th>
                         <th>تاریخ</th>
                         <th>وضعیت</th>
                         <th>عملیات</th>
@@ -20,15 +21,19 @@
                         <tr class="order-row" data-order-id="{{ order.id }}" style="cursor:pointer;">
                             <td>{{ order.code }}</td>
                             <td>{{ order.customer.name }}</td>
+                            <td>{{ order.created_by }}</td>
                             <td>{{ order.created_at|date:"Y/m/d" }}</td>
                             <td>{{ order.get_status_display }}</td>
                             <td>
                                 <button class="btn-icon btn-refer"
                                         data-order-id="{{ order.id }}"
-                                        onclick="event.stopPropagation(); referOrder({{ order.id }})">
+                                        data-code="{{ order.code }}"
+                                        data-url="{% url 'orders:refer_order' order.id %}"
+                                        onclick="event.stopPropagation()">
                                     <span class="btn-icon__symbol">↗️</span>
                                     <span class="btn-icon__label">ارجاع</span>
                                 </button>
+
                             </td>
                         </tr>
                     {% endfor %}
@@ -50,13 +55,23 @@
 
             <div class="modal-body">
                 <div class="modal-tabs">
+
                     <button class="modal-tab active" data-tab="activities" onclick="switchModalTab('activities')">
                         فعالیت‌ها
+                    </button>
+                    <button class="modal-tab" data-tab="order-info" onclick="switchModalTab('order-info')">
+                        اطلاعات سفارش
                     </button>
                     <button class="modal-tab" data-tab="attachments" onclick="switchModalTab('attachments')">
                         پیوست‌ها
                     </button>
                 </div>
+                <div id="tab-order-info" class="modal-tab-panel" style="display:none;">
+                    <table class="orders-table" id="orderInfoTable">
+                        <tbody id="orderInfoBody"></tbody>
+                    </table>
+                </div>
+
 
                 <div id="tab-activities" class="modal-tab-panel">
                     <button class="btn-primary" id="btnAddActivity" onclick="showAddActivityForm()">
@@ -118,6 +133,27 @@
                         </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="refer-modal" style="display:none;">
+        <div class="modal-box" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>ارجاع سفارش <span id="refer-order-code"></span></h3>
+                <button class="modal-close" id="btn-close-refer">✕</button>
+            </div>
+            <div class="modal-body">
+                <label>واحد مقصد:</label>
+                <select id="refer-unit"
+                        style="width:100%;padding:.4rem;margin:.5rem 0 1rem;border:1px solid #ccc;border-radius:6px;font-family:'Vazirmatn',sans-serif;">
+                    <option value="management">مدیریت</option>
+                    <option value="accounting">حسابداری</option>
+                    <option value="reception">پذیرش</option>
+                </select>
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                    <button class="btn-primary" id="btn-confirm-refer">تأیید</button>
+                    <button class="btn-secondary" id="btn-cancel-refer">انصراف</button>
                 </div>
             </div>
         </div>
@@ -262,10 +298,12 @@
 
         function switchModalTab(tab) {
             document.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+            document.getElementById('tab-order-info').style.display = tab === 'order-info' ? 'block' : 'none';
             document.getElementById('tab-activities').style.display = tab === 'activities' ? 'block' : 'none';
             document.getElementById('tab-attachments').style.display = tab === 'attachments' ? 'block' : 'none';
             if (tab === 'attachments') loadAttachments();
         }
+
 
         function getCookie(name) {
             const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -279,6 +317,17 @@
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('modalOrderCode').textContent = data.order_code;
+                    const info = data.order_info;
+                    document.getElementById('orderInfoBody').innerHTML = `
+                        <tr><td>کد سفارش</td><td>${escapeHtml(info.code)}</td></tr>
+                        <tr><td>مشتری</td><td>${escapeHtml(info.customer)}</td></tr>
+                        <tr><td>موبایل مشتری</td><td>${escapeHtml(info.phone)}</td></tr>
+                        <tr><td>ثبت‌کننده</td><td>${escapeHtml(info.created_by)}</td></tr>
+                        <tr><td>تاریخ</td><td>${escapeHtml(info.created_at)}</td></tr>
+                        <tr><td>وضعیت</td><td>${escapeHtml(info.status)}</td></tr>
+                        <tr><td>تعداد سفارش</td><td>${escapeHtml(String(info.count_request))}</td></tr>
+                        <tr><td>توضیحات</td><td>${escapeHtml(info.description)}</td></tr>
+                    `;
 
                     // پر کردن dropdown سرویس‌ها با سرویس‌های همان کارگاه سفارش
                     const sel = document.getElementById('fService');
@@ -439,9 +488,44 @@
             });
         }
 
-        function referOrder(orderId) {
-            // TODO: پیاده‌سازی ارجاع سفارش
-            alert(`ارجاع سفارش ${orderId} هنوز پیاده‌سازی نشده`);
+        // مودال ارجاع را با display flex/none مدیریت می‌کنیم (مطابق activityModal)
+        document.querySelectorAll('.btn-refer').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentReferOrderId = btn.dataset.orderId;
+                currentReferUrl = btn.dataset.url;
+                document.getElementById('refer-order-code').textContent = btn.dataset.code;
+                document.getElementById('refer-modal').style.display = 'flex';
+            });
+        });
+
+        function closeReferModal() {
+            document.getElementById('refer-modal').style.display = 'none';
         }
+
+        document.getElementById('btn-cancel-refer').addEventListener('click', closeReferModal);
+        document.getElementById('btn-close-refer').addEventListener('click', closeReferModal);
+        document.getElementById('refer-modal').addEventListener('click', function (e) {
+            if (e.target === this) closeReferModal();
+        });
+
+        document.getElementById('btn-confirm-refer').addEventListener('click', () => {
+            const target = document.getElementById('refer-unit').value;
+            fetch(currentReferUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `target_unit=${target}`,
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) location.reload();
+                    else alert(data.error || 'خطا در ارجاع سفارش');
+                })
+                .catch(() => alert('خطا در ارتباط با سرور'));
+        });
+
+
     </script>
 {% endblock %}

@@ -45,6 +45,8 @@ class Invoice(models.Model):
     release_note = models.TextField(blank=True)  # دلیل ترخیص بدون تسویه
 
     created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_by_manager = models.BooleanField(default=False)
+    confirmed_by_manager_date_time = models.DateTimeField(null=True,blank=True)
 
     @property
     def paid_amount(self):

@@ -1,5 +1,6 @@
+from _pydecimal import Decimal
+
 import jdatetime
-from django.conf import settings
 from django.db import models, transaction
 
 
@@ -100,7 +101,8 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
-
+    is_archived = models.BooleanField(default=False)
+    is_stopped = models.BooleanField(default=False)
     code = models.CharField(
         max_length=30,
         unique=True,
@@ -108,6 +110,7 @@ class Order(models.Model):
         db_index=True,
         verbose_name='کد سفارش'
     )
+    count_request = models.PositiveSmallIntegerField(default=1)
 
     def save(self, *args, **kwargs):
         if not self.code:

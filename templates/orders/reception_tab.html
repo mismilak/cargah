@@ -17,6 +17,7 @@
                         <th>تاریخ ثبت</th>
                         <th>ثبت توسط</th>
                         <th>پیوست‌ها</th>
+                        <th>تعداد سفارش</th>
                         <th>عملیات</th>
                     </tr>
                     </thead>
@@ -29,6 +30,7 @@
                             <td>{{ order.created_at|date:"Y/m/d H:i" }}</td>
                             <td>{{ order.created_by }}</td>
                             <td>{{ order.attachments.count }}</td>
+                            <td>{{ order.count_request }}</td>
                             <td>
                                 <button class="btn-icon btn-edit"
                                         data-id="{{ order.id }}"
@@ -94,6 +96,11 @@
                 <div class="form-group">
                     <label>توضیحات</label>
                     <textarea required placeholder="مثال: متریال باید st52 باشد" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>تعداد مورد سفارش *</label>
+                    <input type="number" name="count_request" id="reception-count" class="form-control"
+                           min="1" step="1" value="1" required>
                 </div>
                 <div class="form-group">
                     <label>پیوست‌ها</label>
@@ -224,10 +231,11 @@
             <div class="modal-body">
                 <p>سفارش <strong id="refer-order-code"></strong> را به کدام واحد ارجاع می‌دهید؟</p>
                 <div class="form-group">
-                    <select id="refer-unit" class="form-control">
-                        <option value="technical">واحد فنی</option>
-                        <option value="accounting">واحد حسابداری</option>
-                        <option value="delivery">واحد تحویل</option>
+                    <select id="refer-unit"
+                            style="width:100%;padding:.4rem;margin:.5rem 0 1rem;border:1px solid #ccc;border-radius:6px;font-family:'Vazirmatn',sans-serif;">
+                        <option value="management">مدیریت</option>
+                        <option value="technical">فنی</option>
+                        <option value="accounting">حسابداری</option>
                     </select>
                 </div>
                 <div class="modal-footer">
@@ -288,5 +296,4 @@
     </script>
     <script src="{% static 'orders/js/reception.js' %}"></script>
 {% endblock %}
-
 
