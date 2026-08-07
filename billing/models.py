@@ -53,7 +53,7 @@ class Invoice(models.Model):
         from django.db.models import Q, Sum
         result = self.payments.filter(
             Q(method__in=['cash', 'transfer']) |
-            Q(method='check', check_status='cleared')
+            Q(method='check', check_status__in=['pending', 'cleared'])
         ).aggregate(total=Sum('amount'))['total']
         return result or Decimal('0')
 

@@ -30,7 +30,7 @@ class Customer(models.Model):
                                payments__method__in=['cash', 'transfer']
                            ) | models.Q(
                                payments__method='check',
-                               payments__check_status='cleared'
+                               payments__check_status__in=['pending', 'cleared']
                            )
                            )
         )['total_paid'] or Decimal('0')

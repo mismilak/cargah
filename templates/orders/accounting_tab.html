@@ -1,4 +1,5 @@
 {% extends "orders/_dashboard_base.html" %}
+{% load static %}
 
 {% block tab_content %}
     <div class="tab-panel">
@@ -89,6 +90,14 @@
                                     {% else %}—{% endif %}
                                 </td>
                                 <td>
+                                    <button class="btn-icon btn-refer"
+                                            data-order-id="{{ order.id }}"
+                                            data-code="{{ order.code }}"
+                                            data-url="{% url 'orders:refer_order' order.id %}"
+                                            onclick="event.stopPropagation()">
+                                        <span class="btn-icon__symbol">↗️</span>
+                                        <span class="btn-icon__label">ارجاع</span>
+                                    </button>
                                     <button class="btn-icon btn-proforma"
                                             data-order-id="{{ order.id }}"
                                             data-code="{{ order.code }}"
@@ -157,12 +166,20 @@
                                     <option value="check">چک</option>
                                 </select>
                             </div>
+                            <!-- جایگزین بخش مبلغ در فرم پرداخت -->
                             <div>
                                 <label style="font-size:.85rem;color:#64748b;">مبلغ (ریال)</label>
-                                <input type="text" id="pay-amount" class="form-control"
-                                       style="margin-top:.25rem;direction:ltr;"
-                                       placeholder="0" oninput="formatAmountInput(this)">
+                                <div style="display:flex; gap:4px; margin-top:.25rem;">
+                                    <input type="text" id="pay-amount" class="form-control"
+                                           style="direction:ltr; flex-grow: 1;"
+                                           placeholder="0" oninput="formatAmountInput(this)">
+                                    <button type="button" class="btn-secondary"
+                                            style="padding: 0 8px; font-size: 11px; white-space: nowrap;"
+                                            onclick="fillFullAmount()">تسویه کامل
+                                    </button>
+                                </div>
                             </div>
+
                             <div>
                                 <label style="font-size:.85rem;color:#64748b;">تاریخ پرداخت</label>
                                 <input type="text" id="pay-date" class="form-control" style="margin-top:.25rem;"
@@ -208,6 +225,7 @@
             </div>
         </div>
     </div>
+
 
     <!-- Modal جزئیات سفارش ارجاعی -->
     <div class="modal-overlay" id="orderDetailModal" style="display:none;">
@@ -287,6 +305,38 @@
             </div>
         </div>
     </div>
+    <!-- Modal جزئیات پرداخت -->
+    <div class="modal-overlay" id="paymentDetailModal" style="display:none;">
+        <div class="modal-box" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>جزئیات پرداخت</h3>
+                <button class="modal-close"
+                        onclick="document.getElementById('paymentDetailModal').style.display='none'">✕
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div id="checkStatusActions" style="margin-bottom:1rem; display:none;">
+                    <label style="font-size:.85rem;color:#64748b;">تغییر وضعیت چک</label>
+                    <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.4rem;">
+                        <button type="button" class="btn-secondary" onclick="changeCheckStatus('pending')">
+                            در جریان وصول
+                        </button>
+                        <button type="button" class="btn-success" onclick="changeCheckStatus('cleared')">
+                            وصول شده
+                        </button>
+                        <button type="button" class="btn-danger" onclick="changeCheckStatus('bounced')">
+                            برگشتی
+                        </button>
+                    </div>
+                </div>
+
+                <div id="paymentDetailBody"></div>
+            </div>
+        </div>
+    </div>
+
+
 
     <!-- Persian Datepicker -->
     <link rel="stylesheet"
@@ -533,462 +583,11 @@
             }
         }
     </style>
-
     <script>
-        const WORKSHOP_ID = '{{ workshop.id }}';
-
-        function escapeHtml(s) {
-            return String(s ?? '').replace(/[&<>"']/g, c =>
-                ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
-        }
-
-        function getCookie(name) {
-            const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-            return v ? v.pop() : '';
-        }
-
-        function formatNumber(num) {
-            return parseFloat(num).toLocaleString('en-US');
-        }
-
-        function formatAmountInput(input) {
-            let value = input.value.replace(/[^0-9]/g, '');
-            input.value = value ? parseInt(value).toLocaleString('en-US') : '';
-        }
-
-        function parseAmount(formatted) {
-            return formatted.replace(/[^0-9]/g, '');
-        }
-
-        // تبدیل تاریخ شمسی به میلادی
-        function jalaliToGregorian(jalaliStr) {
-            if (!jalaliStr) return '';
-            const parts = jalaliStr.split('/');
-            if (parts.length !== 3) return '';
-
-            let jy = parseInt(parts[0]), jm = parseInt(parts[1]), jd = parseInt(parts[2]);
-
-            // الگوریتم تبدیل شمسی به میلادی
-            jy += 1595;
-            let days = -355779 + (365 * jy) + (Math.floor(jy / 33) * 8) +
-                Math.floor(((jy % 33) + 3) / 4) + jd +
-                (jm < 7 ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
-
-            let gy = 400 * Math.floor(days / 146097);
-            days %= 146097;
-            if (days > 36524) {
-                gy += 100 * Math.floor(--days / 36524);
-                days %= 36524;
-                if (days >= 365) days++;
-            }
-            gy += 4 * Math.floor(days / 1461);
-            days %= 1461;
-            if (days > 365) {
-                gy += Math.floor((days - 1) / 365);
-                days = (days - 1) % 365;
-            }
-
-            let gd = days + 1;
-            const sal_a = [0, 31, (gy % 4 === 0 && gy % 100 !== 0) || gy % 400 === 0 ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-            let gm = 0;
-            for (gm = 0; gm < 13 && gd > sal_a[gm]; gm++) gd -= sal_a[gm];
-
-            return `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
-        }
-
-
-        function gregorianToJalali(gregorianDateString) {
-            if (!gregorianDateString) return '';
-            const gDate = new Date(gregorianDateString);
-            const pDate = new persianDate(gDate);
-            return pDate.format('YYYY/MM/DD');
-        }
-
-        function toJalaliDateTime(gregorianDateTimeString) {
-            if (!gregorianDateTimeString) return '';
-            const gDate = new Date(gregorianDateTimeString);
-            const pDate = new persianDate(gDate);
-            return pDate.format('YYYY/MM/DD HH:mm:ss');
-        }
-
-        // راه‌اندازی datepicker
-        $('#pay-date, #pay-check-due').persianDatepicker({
-            format: 'YYYY/MM/DD',
-            autoClose: true,
-            initialValue: false,
-            observer: true
-        });
-
-        // ---- Acc tabs ----
-        document.querySelectorAll('.acc-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.acc-tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.acc-tab-pane').forEach(p => p.style.display = 'none');
-                btn.classList.add('active');
-                document.getElementById('acc-tab-' + btn.dataset.tab).style.display = '';
-            });
-        });
-
-        // ---- Invoice modal inner tabs ----
-        document.querySelectorAll('.inv-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.inv-tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.inv-tab-pane').forEach(p => p.style.display = 'none');
-                btn.classList.add('active');
-                document.getElementById('inv-tab-' + btn.dataset.itab).style.display = '';
-            });
-        });
-
-        // ---- سفارش‌های تاییدشده ----
-        let currentInvoiceId = null;
-        let currentRemainingAmount = 0;
-
-        document.querySelectorAll('.approved-order-row').forEach(row => {
-            row.addEventListener('click', () => openInvoiceModal(row.dataset.orderId));
-        });
-
-        function openInvoiceModal(orderId) {
-            document.querySelectorAll('.inv-tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
-            document.querySelectorAll('.inv-tab-pane').forEach((p, i) => p.style.display = i === 0 ? '' : 'none');
-
-            document.getElementById('inv-detail-body').innerHTML = '<tr><td colspan="2">در حال بارگذاری...</td></tr>';
-            document.getElementById('invoiceModal').style.display = 'flex';
-
-            fetch(`/orders/api/order/${orderId}/activities/`)
-                .then(r => r.json())
-                .then(data => {
-                    const info = data.order_info;
-                    document.getElementById('inv-order-code').textContent = data.order_code || info.code;
-
-                    document.getElementById('inv-detail-body').innerHTML = `
-                <tr><td>کد سفارش</td><td>${escapeHtml(info.code)}</td></tr>
-                <tr><td>مشتری</td><td>${escapeHtml(info.customer)}</td></tr>
-                <tr><td>موبایل</td><td>${escapeHtml(info.phone)}</td></tr>
-                <tr><td>ثبت‌کننده</td><td>${escapeHtml(info.created_by)}</td></tr>
-                <tr><td>تاریخ</td><td>${escapeHtml(toJalaliDateTime(info.created_at))}</td></tr>
-                <tr><td>وضعیت</td><td>${escapeHtml(info.status)}</td></tr>
-                <tr><td>توضیحات</td><td>${escapeHtml(info.description)}</td></tr>`;
-
-                    const activities = data.activities || [];
-                    if (activities.length) {
-                        const rows = activities.map((a, i) => `
-                    <tr>
-                        <td>${i + 1}</td>
-                        <td>${escapeHtml(a.service_name || a.service__name)}</td>
-                        <td>${escapeHtml(a.service__machine_name || '')}</td>
-                        <td>${formatNumber(a.duration_value)} ${escapeHtml(a.unit || a.service__unit || '')}</td>
-                        <td>${formatNumber(a.price)} ریال</td>
-                        <td>${formatNumber(parseFloat(a.duration_value) * parseFloat(a.price))} ریال</td>
-                    </tr>`).join('');
-                        document.getElementById('inv-services-body').innerHTML = `
-                    <div style="overflow-x:auto;">
-                    <table class="orders-table">
-                        <thead><tr><th>#</th><th>خدمت</th><th>دستگاه</th><th>مقدار</th><th>قیمت واحد</th><th>جمع</th></tr></thead>
-                        <tbody>${rows}</tbody>
-                    </table></div>`;
-                    } else {
-                        document.getElementById('inv-services-body').innerHTML = '<p class="empty-state">خدمتی ثبت نشده.</p>';
-                    }
-                });
-
-            fetch(`/billing/${WORKSHOP_ID}/order/${orderId}/invoice-detail/`)
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.ok) return;
-                    currentInvoiceId = data.invoice_id;
-                    currentRemainingAmount = parseFloat(data.remaining_amount);
-                    renderPaymentTab(data);
-                });
-        }
-
-        function renderPaymentTab(data) {
-            const remaining = parseFloat(data.remaining_amount);
-
-            document.getElementById('inv-payment-summary').innerHTML = `
-        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
-            <span>مبلغ فاکتور: <b>${formatNumber(data.final_amount)} ریال</b></span>
-            <span>پرداخت‌شده: <b style="color:#0f766e;">${formatNumber(data.paid_amount)} ریال</b></span>
-            <span>مانده: <b style="color:${remaining > 0 ? '#dc2626' : '#0f766e'};">${formatNumber(remaining)} ریال</b></span>
-            <span>وضعیت: <b>${escapeHtml(data.status_display)}</b></span>
-        </div>`;
-
-            document.getElementById('remaining-amount-value').textContent = formatNumber(remaining) + ' ریال';
-
-            const payments = data.payments || [];
-            if (payments.length) {
-                document.getElementById('payments-list').innerHTML =
-                    '<div style="font-size:.85rem;font-weight:600;color:#475569;margin-bottom:.5rem;">پرداخت‌های ثبت‌شده</div>' +
-                    payments.map(p => `
-                <div class="payment-item">
-                    <div>
-                        <span class="payment-item__amount">${formatNumber(p.amount)} ریال</span>
-                        <span style="margin-right:.5rem;font-size:.85rem;">${escapeHtml(p.method_display)}</span>
-                        ${p.check_number ? `<span class="payment-item__meta">چک: ${escapeHtml(p.check_number)}</span>` : ''}
-                    </div>
-                    <div class="payment-item__meta">${escapeHtml(gregorianToJalali(p.paid_at))}${p.notes ? ` — ${escapeHtml(p.notes)}` : ''}</div>
-                </div>`).join('');
-            } else {
-                document.getElementById('payments-list').innerHTML = '<p style="font-size:.85rem;color:#94a3b8;">پرداختی ثبت نشده.</p>';
-            }
-        }
-
-        function toggleCheckFields() {
-            const isCheck = document.getElementById('pay-method').value === 'check';
-            const cf = document.getElementById('check-fields');
-            cf.style.display = isCheck ? 'grid' : 'none';
-        }
-
-        function submitPayment() {
-            if (!currentInvoiceId) return;
-            const method = document.getElementById('pay-method').value;
-            const amount = parseAmount(document.getElementById('pay-amount').value);
-            const jalaliDate = document.getElementById('pay-date').value;
-            const paid_at = jalaliToGregorian(jalaliDate);
-            const notes = document.getElementById('pay-notes').value;
-
-            if (!amount || !paid_at) {
-                alert('مبلغ و تاریخ پرداخت الزامی است.');
-                return;
-            }
-
-            const body = new URLSearchParams({method, amount, paid_at, notes});
-            if (method === 'check') {
-                body.append('check_number', document.getElementById('pay-check-number').value);
-                body.append('check_bank', document.getElementById('pay-check-bank').value);
-                body.append('check_due_date', jalaliToGregorian(document.getElementById('pay-check-due').value));
-                body.append('check_status', document.getElementById('pay-check-status').value);
-            }
-
-            fetch(`/billing/${WORKSHOP_ID}/invoice/${currentInvoiceId}/payment/`, {
-                method: 'POST',
-                headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/x-www-form-urlencoded'},
-                body: body.toString(),
-            })
-                .then(r => r.json()).then(data => {
-                if (!data.ok) {
-                    alert(data.error || 'خطا در ثبت پرداخت');
-                    return;
-                }
-                fetch(`/billing/${WORKSHOP_ID}/order/${currentInvoiceId}/invoice-detail/`)
-                    .then(r => r.json()).then(d => {
-                    if (d.ok) renderPaymentTab(d);
-                });
-                document.getElementById('pay-amount').value = '';
-                document.getElementById('pay-date').value = '';
-                document.getElementById('pay-notes').value = '';
-                if (method === 'check') {
-                    document.getElementById('pay-check-number').value = '';
-                    document.getElementById('pay-check-bank').value = '';
-                    document.getElementById('pay-check-due').value = '';
-                }
-            });
-        }
-
-        function closeInvoiceModal() {
-            document.getElementById('invoiceModal').style.display = 'none';
-            currentInvoiceId = null;
-        }
-
-        document.getElementById('invoiceModal').addEventListener('click', function (e) {
-            if (e.target === this) closeInvoiceModal();
-        });
-
-        // ---- سفارش‌های ارجاعی ----
-        document.querySelectorAll('.order-row').forEach(row => {
-            row.addEventListener('click', function () {
-                const orderId = this.dataset.orderId;
-                fetch(`/orders/api/order/${orderId}/activities/`)
-                    .then(r => r.json())
-                    .then(data => {
-                        const info = data.order_info;
-                        document.getElementById('detailOrderCode').textContent = data.order_code;
-                        document.getElementById('detailInfoBody').innerHTML = `
-                    <tr><td>کد سفارش</td><td>${escapeHtml(info.code)}</td></tr>
-                    <tr><td>مشتری</td><td>${escapeHtml(info.customer)}</td></tr>
-                    <tr><td>موبایل</td><td>${escapeHtml(info.phone)}</td></tr>
-                    <tr><td>ثبت‌کننده</td><td>${escapeHtml(info.created_by)}</td></tr>
-                    <tr><td>تاریخ</td><td>${escapeHtml(toJalaliDateTime(info.created_at))}</td></tr>
-                    <tr><td>وضعیت</td><td>${escapeHtml(info.status)}</td></tr>
-                    <tr><td>تعداد</td><td>${escapeHtml(String(info.count_request))}</td></tr>
-                    <tr><td>توضیحات</td><td>${escapeHtml(info.description)}</td></tr>`;
-                        document.getElementById('orderDetailModal').style.display = 'flex';
-                    });
-            });
-        });
-
-        document.getElementById('orderDetailModal').addEventListener('click', function (e) {
-            if (e.target === this) closeDetailModal();
-        });
-
-        function closeDetailModal() {
-            document.getElementById('orderDetailModal').style.display = 'none';
-        }
-
-        // ---- ارجاع ----
-        let currentReferOrderId, currentReferUrl;
-        document.querySelectorAll('.btn-refer').forEach(btn => {
-            btn.addEventListener('click', () => {
-                currentReferOrderId = btn.dataset.orderId;
-                currentReferUrl = btn.dataset.url;
-                document.getElementById('refer-order-code').textContent = btn.dataset.code;
-                document.getElementById('refer-modal').style.display = 'flex';
-            });
-        });
-
-        function closeReferModal() {
-            document.getElementById('refer-modal').style.display = 'none';
-        }
-
-        document.getElementById('btn-cancel-refer').addEventListener('click', closeReferModal);
-        document.getElementById('btn-close-refer').addEventListener('click', closeReferModal);
-        document.getElementById('refer-modal').addEventListener('click', function (e) {
-            if (e.target === this) closeReferModal();
-        });
-        document.getElementById('btn-confirm-refer').addEventListener('click', () => {
-            const target = document.getElementById('refer-unit').value;
-            fetch(currentReferUrl, {
-                method: 'POST',
-                headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `target_unit=${target}`,
-            }).then(r => r.json()).then(data => {
-                if (data.ok) location.reload();
-                else alert(data.error || 'خطا در ارجاع سفارش');
-            });
-        });
-
-        // ---- پیش‌فاکتور ----
-        function openProforma(btn) {
-            const orderId = btn.dataset.orderId;
-            document.getElementById('proformaContent').innerHTML = 'در حال بارگذاری...';
-            document.getElementById('proformaModal').style.display = 'flex';
-            fetch(`/orders/api/order/${orderId}/activities/`)
-                .then(r => r.json())
-                .then(data => {
-                    const info = data.order_info;
-                    const activities = data.activities;
-                    const groups = {};
-                    activities.forEach(a => {
-                        const key = `${a.service_id}_${a.price}`;
-                        if (!groups[key]) groups[key] = {
-                            name: a.service_name, unit: a.unit || '',
-                            price: parseFloat(a.price), qty: 0, total: 0
-                        };
-                        groups[key].qty += parseFloat(a.duration_value);
-                        groups[key].total += parseFloat(a.duration_value) * parseFloat(a.price);
-                    });
-                    const rows = Object.values(groups);
-                    const invoiceTotal = rows.reduce((s, r) => s + r.total, 0);
-                    const prevDebt = parseFloat(data.order_info.prev_debt || 0);
-                    const grandTotal = invoiceTotal + prevDebt;
-                    const rowsHtml = rows.map((r, i) => `
-                <tr>
-                    <td>${i + 1}</td><td>${escapeHtml(r.name)}</td>
-                    <td>${formatNumber(r.qty)}</td>
-                    <td>${formatNumber(r.price)} ریال</td>
-                    <td>${formatNumber(r.total)} ریال</td>
-                </tr>`).join('');
-                    document.getElementById('proformaContent').innerHTML = `
-                <div class="proforma-wrap" id="printArea">
-                    <div class="proforma-header">
-                        <h2>پیش‌فاکتور</h2>
-                        <p>تاریخ: ${escapeHtml(toJalaliDateTime(info.created_at))}</p>
-                        <p>شماره سفارش: ${escapeHtml(info.code)}</p>
-                        <p>مشتری: ${escapeHtml(info.customer)}</p>
-                    </div>
-                    <div class="proforma-workshop">${escapeHtml(data.workshop_name || '')}</div>
-                    <table class="proforma-table">
-                        <thead><tr><th>#</th><th>شرح خدمت</th><th>مقدار</th><th>قیمت واحد</th><th>جمع</th></tr></thead>
-                        <tbody>${rowsHtml}</tbody>
-                    </table>
-                    <div class="proforma-totals">
-                        <p>جمع فاکتور: ${formatNumber(invoiceTotal)} ریال</p>
-                        ${prevDebt > 0 ? `<p>مانده حساب قبلی: ${formatNumber(prevDebt)} ریال</p>` : ''}
-                        ${prevDebt > 0 ? `<p class="grand-total">جمع کل: ${formatNumber(grandTotal)} ریال</p>` : ''}
-                    </div>
-                </div>`;
-                });
-        }
-
-        // ---- فاکتور ----
-        function openProformaConfirmed(btn) {
-            const orderId = btn.dataset.orderId;
-            document.getElementById('invoiceContent').innerHTML = 'در حال بارگذاری...';
-            document.getElementById('proformaModalConfirm').style.display = 'flex';
-            fetch(`/orders/api/order/${orderId}/activities/`)
-                .then(r => r.json())
-                .then(data => {
-                    const info = data.order_info;
-                    const activities = data.activities;
-                    const groups = {};
-                    activities.forEach(a => {
-                        const key = `${a.service_id}_${a.price}`;
-                        if (!groups[key]) groups[key] = {
-                            name: a.service_name, unit: a.unit || '',
-                            price: parseFloat(a.price), qty: 0, total: 0
-                        };
-                        groups[key].qty += parseFloat(a.duration_value);
-                        groups[key].total += parseFloat(a.duration_value) * parseFloat(a.price);
-                    });
-                    const rows = Object.values(groups);
-                    const invoiceTotal = rows.reduce((s, r) => s + r.total, 0);
-                    const prevDebt = parseFloat(data.order_info.prev_debt || 0);
-                    const grandTotal = invoiceTotal + prevDebt;
-                    const rowsHtml = rows.map((r, i) => `
-                <tr>
-                    <td>${i + 1}</td><td>${escapeHtml(r.name)}</td>
-                    <td>${formatNumber(r.qty)}</td>
-                    <td>${formatNumber(r.price)} ریال</td>
-                    <td>${formatNumber(r.total)} ریال</td>
-                </tr>`).join('');
-                    document.getElementById('invoiceContent').innerHTML = `
-                <div class="proforma-wrap" id="printArea">
-                    <div class="proforma-header">
-                        <h2>فاکتور</h2>
-                        <p>تاریخ: ${escapeHtml(toJalaliDateTime(info.created_at))}</p>
-                        <p>شماره سفارش: ${escapeHtml(info.code)}</p>
-                        <p>مشتری: ${escapeHtml(info.customer)}</p>
-                    </div>
-                    <div class="proforma-workshop">${escapeHtml(data.workshop_name || '')}</div>
-                    <table class="proforma-table">
-                        <thead><tr><th>#</th><th>شرح خدمت</th><th>مقدار</th><th>قیمت واحد</th><th>جمع</th></tr></thead>
-                        <tbody>${rowsHtml}</tbody>
-                    </table>
-                    <div class="proforma-totals">
-                        <p>جمع فاکتور: ${formatNumber(invoiceTotal)} ریال</p>
-                        ${prevDebt > 0 ? `<p>مانده حساب قبلی: ${formatNumber(prevDebt)} ریال</p>` : ''}
-                        ${prevDebt > 0 ? `<p class="grand-total">جمع کل: ${formatNumber(grandTotal)} ریال</p>` : ''}
-                    </div>
-                </div>`;
-                });
-        }
-
-        function printProforma() {
-            if (!document.getElementById('vazirmatn-print-font')) {
-                const link = document.createElement('link');
-                link.id = 'vazirmatn-print-font';
-                link.rel = 'stylesheet';
-                link.href = 'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap';
-                document.head.appendChild(link);
-            }
-            window.print();
-        }
-
-        // ---- راه‌اندازی datepicker شمسی ----
-        $(function () {
-            function initPDP(id) {
-                $('#' + id).persianDatepicker({
-                    format: 'YYYY/MM/DD',
-                    autoClose: true,
-                    initialValue: false,
-                    calendar: {persian: {locale: 'fa'}},
-                    onSelect: function () {
-                    }
-                });
-            }
-
-            initPDP('pay-date');
-            initPDP('pay-check-due');
-        });
+        const WORKSHOP_ID = Number("{{ workshop.id }}");
     </script>
+
+    <script src="{% static 'orders/js/accounting.js' %}"></script>
+
 {% endblock %}
 

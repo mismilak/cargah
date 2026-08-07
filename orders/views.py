@@ -356,6 +356,9 @@ def order_refer(request, workshop_id, order_id):
     if unit not in allowed:
         return JsonResponse({'error': 'واحد نامعتبر'}, status=400)
     order.status = unit
+    order.is_stopped = False
+    order.is_archived = False
+    order.save()
     order.save(update_fields=['status'])
     return JsonResponse({'ok': True})
 
@@ -398,6 +401,7 @@ def order_action(request, workshop_id, order_id):
     if action in ('reception', 'technical', 'accounting', 'done'):
         order.status = action
         order.is_stopped = False
+        order.is_archived = False
         order.save()
     elif action == 'stop':
         order.is_stopped = True
@@ -581,6 +585,8 @@ def refer_order(request, order_id):
     if not target:
         return JsonResponse({'ok': False, 'error': 'واحد مقصد مشخص نشده'}, status=400)
     order.status = target
+    order.is_stopped = False
+    order.is_archived = False
     order.save()
     return JsonResponse({'ok': True})
 
