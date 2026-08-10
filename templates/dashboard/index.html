@@ -1,0 +1,362 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block title %}داشبورد | زنجیره{% endblock %}
+
+{% block page_title %}
+    {% if active_tab == 'dashboard' %}
+        داشبورد
+    {% elif active_tab == 'users' %}
+        کاربران
+    {% elif active_tab == 'checklists' %}
+        چک‌لیست‌ها
+    {% elif active_tab == 'reports' %}
+        گزارش‌ها
+    {% elif active_tab == 'settings' %}
+        تنظیمات
+    {% else %}
+        داشبورد
+    {% endif %}
+{% endblock %}
+
+{% block page_subtitle %}
+    {% if active_tab == 'dashboard' %}
+        نمای کلی اطلاعات سیستم
+    {% elif active_tab == 'users' %}
+        لیست اعضای کارگاه‌های تحت مالکیت شما
+    {% elif active_tab == 'checklists' %}
+        مدیریت چک‌لیست‌ها
+    {% elif active_tab == 'reports' %}
+        گزارش‌ها و تحلیل‌ها
+    {% elif active_tab == 'settings' %}
+        تنظیمات حساب و سامانه
+    {% else %}
+        نمای کلی اطلاعات سیستم
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+
+    {% if active_tab == 'dashboard' %}
+        <div class="dashboard-grid">
+
+            <section class="panel profile-panel profile-panel--compact">
+                <div class="panel__header panel__header--between">
+                    <h3 class="panel-title-sm">مشخصات من</h3>
+                </div>
+
+                <div class="profile-panel__body">
+                    <div class="profile-details">
+                        <div class="info-row">
+                            <span>نام و نام خانوادگی</span>
+                            <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>شماره موبایل</span>
+                            <strong>{{ request.user.phone|default:"ثبت نشده" }}</strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>ایمیل</span>
+                            <strong>{{ request.user.email|default:"ثبت نشده" }}</strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>وضعیت حساب</span>
+                            <strong>{% if request.user.is_active %}فعال{% else %}غیرفعال{% endif %}</strong>
+                        </div>
+                    </div>
+
+                    <div class="profile-card profile-card--compact">
+                        <span class="role-badge">مدیر سیستم</span>
+                        <button class="outline-btn" type="button" onclick="openProfileModal()">
+                            ویرایش مشخصات
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel__header panel__header--between">
+                    <h3 class="panel-title-sm">ورکشاپ‌های تحت نظر</h3>
+                    <button class="primary-btn" type="button" onclick="openWorkshopModal()">
+                        افزودن ورکشاپ
+                    </button>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="custom-table">
+                        <thead>
+                        <tr>
+                            <th>نام ورکشاپ</th>
+                            <th>نقش شما</th>
+                            <th>وضعیت</th>
+                            <th>کد ورکشاپ</th>
+                            <th>تاریخ ایجاد</th>
+                            <th>عملیات</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for membership in workshop_memberships %}
+                            <tr>
+                                <td>{{ membership.workshop.name }}</td>
+                                <td>{{ membership.get_role_display }}</td>
+                                <td>
+                                    {% if membership.workshop.is_active %}
+                                        <span class="status-badge status-badge--success">فعال</span>
+                                    {% else %}
+                                        <span class="status-badge status-badge--danger">غیرفعال</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ membership.workshop.code|default:"-" }}</td>
+                                <td>{{ membership.workshop.created_at|date:"Y/m/d" }}</td>
+
+                                <td class="table-actions-cell">
+                                    <div class="row-actions">
+                                        <button
+                                                class="table-action"
+                                                type="button"
+                                                onclick="toggleWorkshopMenu('menu-{{ membership.id }}')"
+                                        >
+                                            ⋮
+                                        </button>
+
+                                        <div class="row-actions__menu" id="menu-{{ membership.id }}">
+                                            <a href="{% url 'orders:dashboard' membership.workshop.id %}"
+                                               class="row-actions__item">کارتابل</a>
+                                            {% if membership.get_role_display == "مالک" %}
+                                                <a href="#" class="row-actions__item"
+                                                   onclick="openEditWorkshopModal(
+                                                           '{{ membership.workshop.id }}',
+                                                           '{{ membership.workshop.name|escapejs }}',
+                                                           '{{ membership.workshop.national_code|default:""|escapejs }}',
+                                                           '{{ membership.workshop.address|default:""|escapejs }}',
+                                                           ); return false;">
+                                                    ویرایش
+                                                </a>
+                                                <a href="#" class="row-actions__item">غیرفعالسازی</a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+
+
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="empty-state">هیچ ورکشاپی برای این کاربر ثبت نشده است.</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+    {% elif active_tab == 'users' %}
+        <section class="panel">
+            <div class="panel__header panel__header--between">
+                <h3 class="panel-title-sm">کاربران</h3>
+                <span class="panel-title-sm">اعضای کارگاه‌های تحت مالکیت شما</span>
+            </div>
+
+            <div class="table-wrap">
+                <table class="custom-table">
+                    <thead>
+                    <tr>
+                        <th>نام</th>
+                        <th>نام خانوادگی</th>
+                        <th>شماره تماس</th>
+                        <th>ایمیل</th>
+                        <th>کارگاه</th>
+                        <th>نقش</th>
+                        <th>وضعیت</th>
+                        <th>تاریخ عضویت</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for membership in user_memberships %}
+                        <tr>
+                            <td>{{ membership.user.first_name|default:"—" }}</td>
+                            <td>{{ membership.user.last_name|default:"—" }}</td>
+                            <td>{{ membership.user.phone|default:"—" }}</td>
+                            <td>{{ membership.user.email|default:"—" }}</td>
+                            <td>{{ membership.workshop.name }}</td>
+                            <td>{{ membership.get_role_display|default:membership.role }}</td>
+                            <td>
+                                {% if membership.is_active %}
+                                    <span class="status-badge status-badge--success">فعال</span>
+                                {% else %}
+                                    <span class="status-badge status-badge--danger">غیرفعال</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ membership.joined_at|date:"Y/m/d" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="empty-state">هیچ کاربری در کارگاه‌های شما یافت نشد.</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    {% elif active_tab == 'checklists' %}
+        <section class="panel">
+            <div class="panel__header">
+                <h3 class="panel-title-sm">چک‌لیست‌ها</h3>
+            </div>
+            <p>این بخش هنوز پیاده‌سازی نشده است.</p>
+        </section>
+
+    {% elif active_tab == 'reports' %}
+        <section class="panel">
+            <div class="panel__header">
+                <h3 class="panel-title-sm">گزارش‌ها</h3>
+            </div>
+            <p>این بخش هنوز پیاده‌سازی نشده است.</p>
+        </section>
+
+    {% elif active_tab == 'settings' %}
+        <section class="panel">
+            <div class="panel__header">
+                <h3 class="panel-title-sm">تنظیمات</h3>
+            </div>
+            <p>این بخش هنوز پیاده‌سازی نشده است.</p>
+        </section>
+    {% endif %}
+
+    {% include 'dashboard/partials/profile_edit_modal.html' %}
+    {% include 'dashboard/partials/workshop_edit_modal.html' %}
+    {% include 'dashboard/partials/create_workshop_modal.html' %}
+    {% include 'dashboard/partials/toast_messages.html' %}
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function openProfileModal() {
+            const modal = document.getElementById('profileEditModal');
+            if (modal) modal.classList.add('show');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeProfileModal() {
+            const modal = document.getElementById('profileEditModal');
+            if (modal) modal.classList.remove('show');
+            document.body.classList.remove('modal-open');
+        }
+
+        function openWorkshopModal() {
+            const modal = document.getElementById('createWorkshopModal');
+            if (modal) modal.classList.add('show');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeWorkshopModal() {
+            const modal = document.getElementById('createWorkshopModal');
+            if (modal) modal.classList.remove('show');
+            document.body.classList.remove('modal-open');
+        }
+
+
+        function openEditWorkshopModal(id, name, nationalCode, address, code) {
+            const modal = document.getElementById('editWorkshopModal');
+            const form = document.getElementById('editWorkshopForm');
+
+            form.action = `/account/workshops/${id}/edit/`;
+            document.getElementById('editWorkshopName').value = name || '';
+            document.getElementById('editWorkshopNationalCode').value = nationalCode || '';
+            document.getElementById('editWorkshopAddress').value = address || '';
+
+            if (modal) modal.classList.add('show');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeEditWorkshopModal() {
+            const modal = document.getElementById('editWorkshopModal');
+            if (modal) modal.classList.remove('show');
+            document.body.classList.remove('modal-open');
+        }
+
+
+        document.addEventListener('click', function (e) {
+            const profileModal = document.getElementById('profileEditModal');
+            const workshopModal = document.getElementById('createWorkshopModal');
+            const editWorkshopModal = document.getElementById('editWorkshopModal');
+
+            if (e.target === profileModal) closeProfileModal();
+            if (e.target === workshopModal) closeWorkshopModal();
+
+            if (!e.target.closest('.row-actions') && !e.target.closest('.row-actions__menu')) {
+                document.querySelectorAll('.row-actions__menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                    if (menu._cleanup) menu._cleanup();
+                });
+            }
+            if (e.target === editWorkshopModal) closeEditWorkshopModal();
+
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeProfileModal();
+                closeWorkshopModal();
+                closeEditWorkshopModal();
+                closeDeactivateWorkshopModal();
+
+                document.querySelectorAll('.row-actions__menu').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+
+        function toggleWorkshopMenu(menuId) {
+            document.querySelectorAll('.row-actions__menu.show').forEach(m => {
+                if (m.id !== menuId) {
+                    m.classList.remove('show');
+                    if (m._cleanup) m._cleanup();
+                }
+            });
+
+            const menu = document.getElementById(menuId);
+            if (!menu) return;
+
+            if (menu.classList.contains('show')) {
+                menu.classList.remove('show');
+                if (menu._cleanup) menu._cleanup();
+                return;
+            }
+
+            const btn = menu.previousElementSibling || menu._originalPrev;
+            if (!btn) return;
+            const rect = btn.getBoundingClientRect();
+
+            // ذخیره موقعیت اصلی
+            const placeholder = document.createComment('menu-placeholder:' + menuId);
+            menu.parentNode.insertBefore(placeholder, menu);
+            menu._placeholder = placeholder;
+
+            document.body.appendChild(menu);
+            menu.style.cssText = `position:fixed;z-index:99999;top:${rect.bottom + 6}px;right:${window.innerWidth - rect.right}px;left:auto;`;
+            menu.classList.add('show');
+
+            const menuH = menu.offsetHeight || 120;
+            if (window.innerHeight - rect.bottom < menuH + 10) {
+                menu.style.top = (rect.top - menuH - 6) + 'px';
+            }
+
+            menu._cleanup = () => {
+                menu.style.cssText = '';
+                menu.classList.remove('show');
+                if (menu._placeholder && menu._placeholder.parentNode) {
+                    menu._placeholder.parentNode.insertBefore(menu, menu._placeholder);
+                    menu._placeholder.parentNode.removeChild(menu._placeholder);
+                }
+                menu._placeholder = null;
+            };
+        }
+
+
+    </script>
+{% endblock %}

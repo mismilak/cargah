@@ -1,0 +1,593 @@
+{% extends "orders/_dashboard_base.html" %}
+{% load static %}
+
+{% block tab_content %}
+    <div class="tab-panel">
+        <div class="panel-header"><h2>حسابداری</h2></div>
+
+        <!-- Tab Nav -->
+        <div class="acc-tab-nav">
+            <button class="acc-tab-btn active" data-tab="referred">سفارش‌های ارجاعی
+                {% if orders %}<span class="acc-badge">{{ orders|length }}</span>{% endif %}
+            </button>
+            <button class="acc-tab-btn" data-tab="approved">سفارش‌های تاییدشده مدیر
+                {% if manager_approved_orders %}
+                    <span class="acc-badge acc-badge--green">{{ manager_approved_orders|length }}</span>{% endif %}
+            </button>
+        </div>
+
+        <!-- ارجاعی -->
+        <div id="acc-tab-referred" class="acc-tab-pane">
+            <div class="orders-table-wrap">
+                {% if orders %}
+                    <table class="orders-table">
+                        <thead>
+                        <tr>
+                            <th>کد</th>
+                            <th>مشتری</th>
+                            <th>تاریخ</th>
+                            <th>وضعیت</th>
+                            <th>عملیات</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for order in orders %}
+                            <tr class="order-row" data-order-id="{{ order.id }}" style="cursor:pointer;">
+                                <td>{{ order.code }}</td>
+                                <td>{{ order.customer.name }}</td>
+                                <td>{{ order.created_at|date:"Y/m/d" }}</td>
+                                <td>{{ order.get_status_display }}</td>
+                                <td>
+                                    <button class="btn-icon btn-refer"
+                                            data-order-id="{{ order.id }}"
+                                            data-code="{{ order.code }}"
+                                            data-url="{% url 'orders:refer_order' order.id %}"
+                                            onclick="event.stopPropagation()">
+                                        <span class="btn-icon__symbol">↗️</span>
+                                        <span class="btn-icon__label">ارجاع</span>
+                                    </button>
+                                    <button class="btn-icon btn-proforma"
+                                            data-order-id="{{ order.id }}"
+                                            data-code="{{ order.code }}"
+                                            onclick="event.stopPropagation(); openProforma(this)">
+                                        <span class="btn-icon__symbol">🧾</span>
+                                        <span class="btn-icon__label">پیش‌فاکتور</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty-state">سفارشی در حسابداری وجود ندارد.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- تاییدشده مدیر -->
+        <div id="acc-tab-approved" class="acc-tab-pane" style="display:none;">
+            <div class="orders-table-wrap">
+                {% if manager_approved_orders %}
+                    <table class="orders-table">
+                        <thead>
+                        <tr>
+                            <th>کد</th>
+                            <th>مشتری</th>
+                            <th>تاریخ</th>
+                            <th>وضعیت فاکتور</th>
+                            <th>عملیات</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for order in manager_approved_orders %}
+                            <tr class="approved-order-row" data-order-id="{{ order.id }}" style="cursor:pointer;">
+                                <td>{{ order.code }}</td>
+                                <td>{{ order.customer.name }}</td>
+                                <td>{{ order.created_at|date:"Y/m/d" }}</td>
+                                <td>
+                                    {% if order.invoice %}
+                                        {{ order.invoice.get_status_display }}
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn-icon btn-refer"
+                                            data-order-id="{{ order.id }}"
+                                            data-code="{{ order.code }}"
+                                            data-url="{% url 'orders:refer_order' order.id %}"
+                                            onclick="event.stopPropagation()">
+                                        <span class="btn-icon__symbol">↗️</span>
+                                        <span class="btn-icon__label">ارجاع</span>
+                                    </button>
+                                    <button class="btn-icon btn-proforma"
+                                            data-order-id="{{ order.id }}"
+                                            data-code="{{ order.code }}"
+                                            onclick="event.stopPropagation(); openProformaConfirmed(this)">
+                                        <span class="btn-icon__symbol">🧾</span>
+                                        <span class="btn-icon__label">فاکتور</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty-state">سفارش تاییدشده‌ای وجود ندارد.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal جزئیات سفارش تاییدشده -->
+    <div class="modal-overlay" id="invoiceModal" style="display:none;">
+        <div class="modal-box" style="max-width:720px;">
+            <div class="modal-header">
+                <h3>سفارش <span id="inv-order-code"></span></h3>
+                <button class="modal-close" onclick="closeInvoiceModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="inv-tab-nav">
+                    <button class="inv-tab-btn active" data-itab="detail">جزئیات سفارش</button>
+                    <button class="inv-tab-btn" data-itab="services">خدمات انجام‌شده</button>
+                    <button class="inv-tab-btn" data-itab="payment">مانده و پرداخت</button>
+                </div>
+
+                <div id="inv-tab-detail" class="inv-tab-pane">
+                    <table class="orders-table">
+                        <tbody id="inv-detail-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="inv-tab-services" class="inv-tab-pane" style="display:none;">
+                    <div id="inv-services-body"></div>
+                </div>
+
+                <div id="inv-tab-payment" class="inv-tab-pane" style="display:none;">
+                    <div id="inv-payment-summary"
+                         style="margin-bottom:1rem;padding:.75rem;background:#f8fafc;border-radius:8px;font-size:.95rem;"></div>
+
+                    <div id="remaining-amount-display"
+                         style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border:2px solid #f59e0b;border-radius:8px;padding:1rem;margin-bottom:1.25rem;text-align:center;">
+                        <div style="font-size:.9rem;color:#92400e;margin-bottom:.25rem;">مانده حساب قابل پرداخت</div>
+                        <div id="remaining-amount-value"
+                             style="font-size:1.75rem;font-weight:700;color:#b45309;direction:ltr;">
+                            0 ریال
+                        </div>
+                    </div>
+
+                    <form id="payment-form"
+                          style="border:1px solid #e2e8f0;border-radius:8px;padding:1rem;margin-bottom:1rem;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                            <div>
+                                <label style="font-size:.85rem;color:#64748b;">روش پرداخت</label>
+                                <select id="pay-method" class="form-control" style="margin-top:.25rem;"
+                                        onchange="toggleCheckFields()">
+                                    <option value="cash">نقد</option>
+                                    <option value="transfer">کارت به کارت / شبا</option>
+                                    <option value="check">چک</option>
+                                </select>
+                            </div>
+                            <!-- جایگزین بخش مبلغ در فرم پرداخت -->
+                            <div>
+                                <label style="font-size:.85rem;color:#64748b;">مبلغ (ریال)</label>
+                                <div style="display:flex; gap:4px; margin-top:.25rem;">
+                                    <input type="text" id="pay-amount" class="form-control"
+                                           style="direction:ltr; flex-grow: 1;"
+                                           placeholder="0" oninput="formatAmountInput(this)">
+                                    <button type="button" class="btn-secondary"
+                                            style="padding: 0 8px; font-size: 11px; white-space: nowrap;"
+                                            onclick="fillFullAmount()">تسویه کامل
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style="font-size:.85rem;color:#64748b;">تاریخ پرداخت</label>
+                                <input type="text" id="pay-date" class="form-control" style="margin-top:.25rem;"
+                                       readonly placeholder="انتخاب تاریخ">
+                            </div>
+                            <div>
+                                <label style="font-size:.85rem;color:#64748b;">یادداشت</label>
+                                <input type="text" id="pay-notes" class="form-control" style="margin-top:.25rem;">
+                            </div>
+                        </div>
+                        <div id="check-fields"
+                             style="display:none;margin-top:.75rem;grid-template-columns:1fr 1fr;gap:.75rem;">
+                            <div>
+                                <label style="font-size:.85rem;color:#64748b;">شماره چک</label>
+                                <input type="text" id="pay-check-number" class="form-control"
+                                       style="margin-top:.25rem;">
+                            </div>
+                            <div>
+                                <label style="font-size:.85rem;color:#64748b;">بانک</label>
+                                <input type="text" id="pay-check-bank" class="form-control" style="margin-top:.25rem;">
+                            </div>
+                            <div>
+                                <label style="font-size:.85rem;color:#64748b;">تاریخ سررسید</label>
+                                <input type="text" id="pay-check-due" class="form-control" style="margin-top:.25rem;"
+                                       readonly placeholder="انتخاب تاریخ">
+                            </div>
+                            <div>
+                                <label style="font-size:.85rem;color:#64748b;">وضعیت چک</label>
+                                <select id="pay-check-status" class="form-control" style="margin-top:.25rem;">
+                                    <option value="pending">در جریان وصول</option>
+                                    <option value="cleared">وصول شده</option>
+                                    <option value="bounced">برگشتی</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-top:.75rem;text-align:left;">
+                            <button type="button" class="btn-primary" onclick="submitPayment()">💳 ثبت پرداخت</button>
+                        </div>
+                    </form>
+
+                    <div id="payments-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal جزئیات سفارش ارجاعی -->
+    <div class="modal-overlay" id="orderDetailModal" style="display:none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>سفارش <span id="detailOrderCode"></span></h3>
+                <button class="modal-close" onclick="closeDetailModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <table class="orders-table">
+                    <tbody id="detailInfoBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ارجاع -->
+    <div class="modal-overlay" id="refer-modal" style="display:none;">
+        <div class="modal-box" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>ارجاع سفارش <span id="refer-order-code"></span></h3>
+                <button class="modal-close" id="btn-close-refer">✕</button>
+            </div>
+            <div class="modal-body">
+                <label>واحد مقصد:</label>
+                <select id="refer-unit"
+                        style="width:100%;padding:.4rem;margin:.5rem 0 1rem;border:1px solid #ccc;border-radius:6px;font-family:'Vazirmatn',sans-serif;">
+                    <option value="technical">فنی</option>
+                    <option value="management">مدیریت</option>
+                    <option value="reception">پذیرش</option>
+                </select>
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                    <button class="btn-primary" id="btn-confirm-refer">تأیید</button>
+                    <button class="btn-secondary" id="btn-cancel-refer">انصراف</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal پیش‌فاکتور -->
+    <div class="modal-overlay" id="proformaModal" style="display:none;">
+        <div class="modal-box" style="max-width:700px;">
+            <div class="modal-header">
+                <h3>پیش‌فاکتور</h3>
+                <button class="modal-close" onclick="document.getElementById('proformaModal').style.display='none'">✕
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="proformaContent">در حال بارگذاری...</div>
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;">
+                    <button class="btn-primary" onclick="printProforma()">🖨️ پرینت / PDF</button>
+                    <button class="btn-secondary"
+                            onclick="document.getElementById('proformaModal').style.display='none'">بستن
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal فاکتور -->
+    <div class="modal-overlay" id="proformaModalConfirm" style="display:none;">
+        <div class="modal-box" style="max-width:700px;">
+            <div class="modal-header">
+                <h3>فاکتور</h3>
+                <button class="modal-close"
+                        onclick="document.getElementById('proformaModalConfirm').style.display='none'">✕
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="invoiceContent">در حال بارگذاری...</div>
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;">
+                    <button class="btn-primary" onclick="printProforma()">🖨️ پرینت / PDF</button>
+                    <button class="btn-secondary"
+                            onclick="document.getElementById('proformaModalConfirm').style.display='none'">بستن
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal جزئیات پرداخت -->
+    <div class="modal-overlay" id="paymentDetailModal" style="display:none;">
+        <div class="modal-box" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>جزئیات پرداخت</h3>
+                <button class="modal-close"
+                        onclick="document.getElementById('paymentDetailModal').style.display='none'">✕
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div id="checkStatusActions" style="margin-bottom:1rem; display:none;">
+                    <label style="font-size:.85rem;color:#64748b;">تغییر وضعیت چک</label>
+                    <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.4rem;">
+                        <button type="button" class="btn-secondary" onclick="changeCheckStatus('pending')">
+                            در جریان وصول
+                        </button>
+                        <button type="button" class="btn-success" onclick="changeCheckStatus('cleared')">
+                            وصول شده
+                        </button>
+                        <button type="button" class="btn-danger" onclick="changeCheckStatus('bounced')">
+                            برگشتی
+                        </button>
+                    </div>
+                </div>
+
+                <div id="paymentDetailBody"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Persian Datepicker -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+
+    <style>
+        .acc-tab-nav {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .acc-tab-btn {
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-family: 'Vazirmatn', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .acc-tab-btn.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .acc-badge {
+            background: #e2e8f0;
+            color: #475569;
+            border-radius: 999px;
+            padding: 1px 7px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .acc-badge--green {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .inv-tab-nav {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .inv-tab-btn {
+            padding: 6px 14px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-family: 'Vazirmatn', sans-serif;
+        }
+
+        .inv-tab-btn.active {
+            color: #0ea5e9;
+            border-bottom-color: #0ea5e9;
+            font-weight: 600;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-box {
+            background: #fff;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 760px;
+            max-height: 90vh;
+            overflow-y: auto;
+            font-family: 'Vazirmatn', sans-serif;
+            direction: rtl;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 1;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 1rem 1.25rem;
+        }
+
+        .payment-item {
+            padding: .6rem .75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: .5rem;
+            font-size: .88rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: .25rem;
+        }
+
+        .payment-item__amount {
+            font-weight: 700;
+            color: #0f766e;
+        }
+
+        .payment-item__meta {
+            color: #64748b;
+            font-size: .82rem;
+        }
+
+        .proforma-wrap {
+            font-family: 'Vazirmatn', sans-serif;
+            direction: rtl;
+        }
+
+        .proforma-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .proforma-header h2 {
+            font-size: 1.4rem;
+            margin: 0 0 .25rem;
+        }
+
+        .proforma-header p {
+            margin: .15rem 0;
+            font-size: .9rem;
+            color: #555;
+        }
+
+        .proforma-workshop {
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+            margin: .75rem 0;
+        }
+
+        .proforma-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: .9rem;
+        }
+
+        .proforma-table th, .proforma-table td {
+            border: 1px solid #ccc;
+            padding: .45rem .7rem;
+            text-align: right;
+        }
+
+        .proforma-table thead {
+            background: #f0f4f8;
+        }
+
+        .proforma-totals {
+            margin-top: .75rem;
+            text-align: left;
+            font-size: .95rem;
+        }
+
+        .proforma-totals p {
+            margin: .25rem 0;
+        }
+
+        .proforma-totals .grand-total {
+            font-weight: bold;
+            font-size: 1.05rem;
+            border-top: 2px solid #333;
+            padding-top: .4rem;
+            margin-top: .4rem;
+        }
+
+        @media (max-width: 600px) {
+            .modal-box {
+                border-radius: 8px;
+            }
+
+            #payment-form > div:first-child {
+                grid-template-columns: 1fr !important;
+            }
+
+            #check-fields {
+                grid-template-columns: 1fr !important;
+            }
+
+            .acc-tab-btn {
+                font-size: 13px;
+                padding: 6px 10px;
+            }
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            #printArea, #printArea * {
+                visibility: visible;
+            }
+
+            #printArea {
+                position: fixed;
+                inset: 0;
+                padding: 2rem;
+                font-family: 'Vazirmatn', sans-serif;
+                direction: rtl;
+            }
+        }
+    </style>
+    <script>
+        const WORKSHOP_ID = Number("{{ workshop.id }}");
+    </script>
+
+    <script src="{% static 'orders/js/accounting.js' %}"></script>
+
+{% endblock %}
+

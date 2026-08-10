@@ -1,0 +1,299 @@
+{% extends "orders/_dashboard_base.html" %}
+{% load static %}
+{% block tab_content %}
+    <div class="tab-panel">
+        <div class="panel-header">
+            <h2>پذیرش سفارشات</h2>
+            <button class="btn-primary" id="btn-open-reception">+ پذیرش جدید</button>
+        </div>
+        <div class="orders-table-wrap">
+            {% if orders %}
+                <table class="orders-table">
+                    <thead>
+                    <tr>
+                        <th>کد سفارش</th>
+                        <th>مشتری</th>
+                        <th>تلفن</th>
+                        <th>تاریخ ثبت</th>
+                        <th>ثبت توسط</th>
+                        <th>پیوست‌ها</th>
+                        <th>تعداد سفارش</th>
+                        <th>عملیات</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for order in orders %}
+                        <tr class="order-row" data-detail-url="{% url 'orders:order_detail' workshop.id order.id %}">
+                            <td>{{ order.code }}</td>
+                            <td>{{ order.customer.name }}</td>
+                            <td>{{ order.customer.phone }}</td>
+                            <td>{{ order.created_at|date:"Y/m/d H:i" }}</td>
+                            <td>{{ order.created_by }}</td>
+                            <td>{{ order.attachments.count }}</td>
+                            <td>{{ order.count_request }}</td>
+                            <td>
+                                <button class="btn-icon btn-edit"
+                                        data-id="{{ order.id }}"
+                                        data-description="{{ order.description|default:'' }}"
+                                        data-url="{% url 'orders:order_edit' workshop.id order.id %}">
+                                    <span
+                                            class="btn-icon__symbol">✏️</span>
+                                    <span class="btn-icon__label">ویرایش</span>
+                                </button>
+                                <button class="btn-icon btn-delete"
+                                        data-id="{{ order.id }}"
+                                        data-code="{{ order.code }}"
+                                        data-url="{% url 'orders:order_delete' workshop.id order.id %}"><span
+                                        class="btn-icon__symbol">🗑️</span>
+                                    <span class="btn-icon__label">حذف</span>
+                                </button>
+                                <button class="btn-icon btn-refer"
+                                        data-id="{{ order.id }}"
+                                        data-code="{{ order.code }}"
+                                        data-url="{% url 'orders:order_refer' workshop.id order.id %}"><span
+                                        class="btn-icon__symbol">↗️</span>
+                                    <span class="btn-icon__label">ارجاع</span>
+                                </button>
+                            </td>
+                        </tr>
+
+                    {% endfor %}
+                    </tbody>
+
+                </table>
+            {% else %}
+                <p class="empty-state">سفارشی در پذیرش وجود ندارد.</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block modal %}
+
+    {# ── مودال اصلی پذیرش ── #}
+    <div class="modal-overlay" id="reception-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>پذیرش سفارش جدید</h3>
+                <button class="modal-close" id="btn-close-modal">&times;</button>
+            </div>
+            <form method="post" enctype="multipart/form-data" class="modal-form" id="reception-form">
+                {% csrf_token %}
+                <input type="hidden" name="customer_id" id="selected-customer-id">
+
+                {# نمایش مشتری انتخاب‌شده #}
+                <div class="form-group">
+                    <label>مشتری *</label>
+                    <div class="customer-selector">
+                        <div class="selected-customer-display" id="selected-customer-display">
+                            <span class="placeholder-text">مشتری انتخاب نشده</span>
+                        </div>
+                        <button type="button" class="btn-secondary" id="btn-pick-customer">انتخاب مشتری</button>
+                    </div>
+                </div>
+
+
+                <div class="form-group">
+                    <label>توضیحات</label>
+                    <textarea required placeholder="مثال: متریال باید st52 باشد" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>تعداد مورد سفارش *</label>
+                    <input type="number" name="count_request" id="reception-count" class="form-control"
+                           min="1" step="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>پیوست‌ها</label>
+                    <div class="file-drop-zone" id="file-drop-zone">
+                        <span>فایل‌ها را اینجا بکشید یا کلیک کنید</span>
+                        <input type="file" name="attachments" id="file-input" multiple
+                               accept="image/*,.pdf,.doc,.docx,.xlsx">
+                    </div>
+                    <div class="file-preview" id="file-preview"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="btn-cancel">انصراف</button>
+                    <button type="submit" class="btn-primary" id="btn-submit-reception" disabled>ثبت پذیرش</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── مودال انتخاب مشتری ── #}
+    <div class="modal-overlay" id="customer-pick-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3>انتخاب مشتری</h3>
+                <button class="modal-close" id="btn-close-pick">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="customer-search" placeholder="جستجو بر اساس نام یا تلفن..." class="form-control">
+                <div class="customer-list" id="customer-list">
+                    <p class="empty-state">در حال بارگذاری...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-primary" id="btn-new-customer">+ مشتری جدید</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── مودال ایجاد مشتری جدید ── #}
+    <div class="modal-overlay" id="customer-create-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3>مشتری جدید</h3>
+                <button class="modal-close" id="btn-close-create">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="customer-create-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>نام *</label>
+                        <input type="text" name="name" id="new-customer-name" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>نام کارگاه</label>
+                        <input type="text" name="customer_workshop_name" id="new-customer-workshop"
+                               class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>شماره موبایل</label>
+                        <input type="text" name="phone" id="new-customer-phone" class="form-control">
+                    </div>
+                    <div class="form-group form-check">
+                        <label><input type="checkbox" name="is_legal" id="new-customer-legal"> مشتری حقوقی</label>
+                    </div>
+                    <div class="form-error" id="create-error" style="display:none;color:red;"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" id="btn-back-to-pick">بازگشت</button>
+                        <button type="submit" class="btn-primary">ایجاد و انتخاب</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {# ── مودال ویرایش سفارش ── #}
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3>ویرایش سفارش</h3>
+                <button class="modal-close" id="btn-close-edit">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" id="edit-order-id">
+                    <div class="form-group">
+                        <label>توضیحات</label>
+                        <textarea name="description" id="edit-description" rows="3" class="form-control"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>افزودن پیوست</label>
+                        <input type="file" name="attachments" id="edit-file-input" multiple
+                               accept="image/*,.pdf,.doc,.docx,.xlsx" class="form-control">
+                    </div>
+                    <div class="form-error" id="edit-error" style="display:none;color:red;"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" id="btn-cancel-edit">انصراف</button>
+                        <button type="submit" class="btn-primary">ذخیره</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# ── مودال تأیید حذف ── #}
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3>تأیید حذف</h3>
+                <button class="modal-close" id="btn-close-delete">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>آیا از حذف سفارش <strong id="delete-order-code"></strong> مطمئن هستید؟</p>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="btn-cancel-delete">انصراف</button>
+                    <button type="button" class="btn-danger" id="btn-confirm-delete">حذف</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    {# ── مودال ارجاع ── #}
+    <div class="modal-overlay" id="refer-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3>ارجاع سفارش</h3>
+                <button class="modal-close" id="btn-close-refer">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>سفارش <strong id="refer-order-code"></strong> را به کدام واحد ارجاع می‌دهید؟</p>
+                <div class="form-group">
+                    <select id="refer-unit"
+                            style="width:100%;padding:.4rem;margin:.5rem 0 1rem;border:1px solid #ccc;border-radius:6px;font-family:'Vazirmatn',sans-serif;">
+                        <option value="management">مدیریت</option>
+                        <option value="technical">فنی</option>
+                        <option value="accounting">حسابداری</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="btn-cancel-refer">انصراف</button>
+                    <button type="button" class="btn-primary" id="btn-confirm-refer">ارجاع</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── مودال جزئیات سفارش ── #}
+    <div class="modal-overlay" id="detail-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>جزئیات سفارش <span id="detail-code"></span></h3>
+                <button class="modal-close" id="btn-close-detail">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <div><strong>مشتری:</strong> <span id="detail-customer"></span></div>
+                    <div><strong>تلفن:</strong> <span id="detail-phone"></span></div>
+                    <div><strong>تاریخ ثبت:</strong> <span id="detail-date"></span></div>
+                    <div><strong>ثبت‌کننده:</strong> <span id="detail-created-by"></span></div>
+                    <div><strong>وضعیت:</strong> <span id="detail-status"></span></div>
+                </div>
+                <div class="form-group">
+                    <label>توضیحات</label>
+                    <p id="detail-description" class="detail-description"></p>
+                </div>
+                <div class="form-group">
+                    <label>پیوست‌ها</label>
+                    <div id="detail-attachments" class="attachment-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block toast %}
+    {% if show_success %}
+        <div class="toast" id="toast">
+            <span>✓ پذیرش با موفقیت ثبت شد</span>
+            <div class="toast-progress" id="toast-progress"></div>
+        </div>
+        <script>
+            history.replaceState(null, '', window.location.pathname);
+        </script>
+    {% endif %}
+{% endblock %}
+
+
+{% block extra_js %}
+    <script>
+        const CUSTOMER_LIST_URL = "{% url 'orders:customer_list' workshop.id %}";
+        const CUSTOMER_CREATE_URL = "{% url 'orders:customer_create' workshop.id %}";
+        const CSRF_TOKEN = "{{ csrf_token }}";
+    </script>
+    <script src="{% static 'orders/js/reception.js' %}"></script>
+{% endblock %}
+

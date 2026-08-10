@@ -1,0 +1,71 @@
+<div class="custom-modal" id="createWorkshopModal">
+    <div class="custom-modal__dialog custom-modal__dialog--sm">
+        <div class="custom-modal__header">
+            <h3>ایجاد ورکشاپ جدید</h3>
+            <button type="button" class="custom-modal__close" onclick="closeWorkshopModal()">×</button>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_workshop">
+
+            <div class="custom-modal__body">
+                <div class="modal-form-grid modal-form-grid--single">
+                    <div class="modal-form-group">
+                        <label for="id_workshop_name">نام ورکشاپ <span class="required-star">*</span></label>
+                        <input type="text" id="id_workshop_name" name="name" required>
+                    </div>
+
+                    <div class="modal-form-group">
+                        <label for="id_workshop_national_code">شناسه / کد ملی</label>
+                        <input type="text" id="id_workshop_national_code" name="national_code">
+                    </div>
+
+                    <div class="modal-form-group">
+                        <label for="id_workshop_address">آدرس</label>
+                        <textarea id="id_workshop_address" name="address" rows="4"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="custom-modal__footer">
+                <button type="button" class="modal-btn modal-btn--ghost" onclick="closeWorkshopModal()">انصراف</button>
+                <button type="submit" class="modal-btn modal-btn--primary">ایجاد ورکشاپ</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .custom-modal__dialog--sm {
+        max-width: 560px;
+    }
+
+    .modal-form-grid--single {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-form-group textarea {
+        width: 100%;
+        min-height: 110px;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        padding: 12px 14px;
+        font-size: 14px;
+        color: #0f172a;
+        background: #fff;
+        transition: all 0.2s ease;
+        outline: none;
+        resize: vertical;
+    }
+
+    .modal-form-group textarea:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+    }
+
+    .required-star {
+        color: #ef4444;
+        font-weight: 800;
+    }
+</style>

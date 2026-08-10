@@ -1,0 +1,179 @@
+{#base dashboard#}
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}داشبورد{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="dashboard-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <div class="brand__logo">ز</div>
+            <div class="brand__content">
+                <h2>زنجیره</h2>
+                <span>مدیریت کارگاهی</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="{% url 'accounts:dashboard' %}?tab=dashboard"
+               class="nav-item {% if active_tab == 'dashboard' %}active{% endif %}">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">داشبورد</span>
+            </a>
+
+            <a href="{% url 'accounts:dashboard' %}?tab=users"
+               class="nav-item {% if active_tab == 'users' %}active{% endif %}">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">کاربران</span>
+            </a>
+
+            {#            <a href="{% url 'accounts:dashboard' %}?tab=workshops"#}
+            {#               class="nav-item {% if active_tab == 'workshops' %}active{% endif %}">#}
+            {#                <span class="nav-icon">🏭</span>#}
+            {#                <span class="nav-label">کارگاه‌ها</span>#}
+            {#            </a>#}
+
+            <a href="{% url 'accounts:dashboard' %}?tab=checklists"
+               class="nav-item {% if active_tab == 'checklists' %}active{% endif %}">
+                <span class="nav-icon">📋</span>
+                <span class="nav-label">چک‌لیست‌ها</span>
+            </a>
+
+            <a href="{% url 'accounts:dashboard' %}?tab=reports"
+               class="nav-item {% if active_tab == 'reports' %}active{% endif %}">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">گزارش‌ها</span>
+            </a>
+
+            <a href="{% url 'accounts:dashboard' %}?tab=settings"
+               class="nav-item {% if active_tab == 'settings' %}active{% endif %}">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">تنظیمات</span>
+            </a>
+        </nav>
+
+
+        <div class="sidebar-footer">
+            <button class="theme-toggle" id="themeToggle" type="button">
+                <span class="theme-toggle__icon">🌙</span>
+                <span class="theme-toggle__text">حالت روشن/تاریک</span>
+            </button>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div class="topbar__right">
+                <button class="menu-btn" type="button" id="menuToggle" aria-label="باز کردن منو">
+                    ☰
+                </button>
+
+                <div class="page-meta">
+                    <h1>{% block page_title %}داشبورد{% endblock %}</h1>
+                    <p>{% block page_subtitle %}نمای کلی اطلاعات سیستم{% endblock %}</p>
+                </div>
+            </div>
+
+            <div class="topbar__left">
+                <div class="topbar-actions">
+                    <a href="#" class="icon-btn message-btn" aria-label="پیام‌ها">
+                        <i class="fa fa-envelope"></i>
+                        <span class="icon-btn__badge">۳</span>
+                    </a>
+
+                    <button type="button" class="icon-btn logout-top-btn" onclick="openLogoutModal()" aria-label="خروج">
+                        <i class="fa fa-sign-out"></i>
+                        <span class="logout-btn-text">خروج</span>
+                    </button>
+                </div>
+            </div>
+
+
+        </header>
+
+        <section class="content-area">
+            {% block content %}{% endblock %}
+        </section>
+    </main>
+</div>
+
+<div class="logout-modal" id="logoutModal">
+    <div class="logout-modal__backdrop" onclick="closeLogoutModal()"></div>
+    <div class="logout-modal__content">
+        <h4>تأیید خروج</h4>
+        <p>آیا مطمئن هستید که می‌خواهید از حساب کاربری خود خارج شوید؟</p>
+        <div class="logout-modal__actions">
+            <button type="button" class="outline-btn" onclick="closeLogoutModal()">انصراف</button>
+
+            <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="danger-btn" style="border:none; cursor:pointer;">
+                    خروج
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const html = document.documentElement;
+    const themeToggle = document.getElementById('themeToggle');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        html.setAttribute('data-theme', savedTheme);
+    }
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function () {
+            const currentTheme = html.getAttribute('data-theme') || 'dark';
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('theme', nextTheme);
+        });
+    }
+
+    if (menuToggle && sidebar && sidebarOverlay) {
+        menuToggle.addEventListener('click', function () {
+            sidebar.classList.toggle('is-open');
+            sidebarOverlay.classList.toggle('is-open');
+        });
+
+        sidebarOverlay.addEventListener('click', function () {
+            sidebar.classList.remove('is-open');
+            sidebarOverlay.classList.remove('is-open');
+        });
+    }
+
+    function openLogoutModal() {
+        document.getElementById('logoutModal').classList.add('active');
+    }
+
+    function closeLogoutModal() {
+        document.getElementById('logoutModal').classList.remove('active');
+    }
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

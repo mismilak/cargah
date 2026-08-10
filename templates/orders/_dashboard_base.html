@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد - {{ workshop.name }}</title>
+    <link rel="stylesheet" href="{% static 'orders/css/dashboard.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="site-header">
+    <div class="header-inner">
+        <div class="header-right">
+            <a href="{% url 'accounts:dashboard' %}" class="btn-back" id="btn-back">&#8594; بازگشت</a>
+            <div class="workshop-info">
+                <span class="workshop-name">{{ workshop.name }}</span>
+                {% if workshop.national_code %}
+                    <span class="workshop-meta">کد: {{ workshop.national_code }}</span>
+                {% endif %}
+                <span class="workshop-meta">مالک: {{ workshop.owner.get_full_name|default:workshop.owner.username }}</span>
+            </div>
+        </div>
+        <div class="header-left">
+            <span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+            <span class="user-role">{{ membership.get_role_display }}</span>
+            <a href="{% url 'accounts:logout' %}" class="btn-logout">خروج</a>
+        </div>
+    </div>
+</header>
+
+<nav class="tab-nav">
+    <div class="tab-nav-inner">
+        {% if 'reception' in allowed_tabs %}
+            <a href="{% url 'orders:management' workshop.id %}"
+               class="tab-link {% if active_tab == 'management' %}active{% endif %}">مدیریت</a>
+        {% endif %}
+        {% if 'reception' in allowed_tabs %}
+            <a href="{% url 'orders:tab_reception' workshop.id %}"
+               class="tab-link {% if active_tab == 'reception' %}active{% endif %}">پذیرش</a>
+        {% endif %}
+        {% if 'technical' in allowed_tabs %}
+            <a href="{% url 'orders:tab_technical' workshop.id %}"
+               class="tab-link {% if active_tab == 'technical' %}active{% endif %}">فنی</a>
+        {% endif %}
+        {% if 'accounting' in allowed_tabs %}
+            <a href="{% url 'orders:tab_accounting' workshop.id %}"
+               class="tab-link {% if active_tab == 'accounting' %}active{% endif %}">حسابداری</a>
+        {% endif %}
+        {% if 'delivery' in allowed_tabs %}
+            <a href="{% url 'orders:tab_delivery' workshop.id %}"
+               class="tab-link {% if active_tab == 'delivery' %}active{% endif %}">ترخیص</a>
+        {% endif %}
+    </div>
+</nav>
+
+<main class="main-content">
+    {% block tab_content %}{% endblock %}
+</main>
+
+{% block modal %}{% endblock %}
+
+{% block toast %}{% endblock %}
+
+<script src="{% static 'orders/js/dashboard.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

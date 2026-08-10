@@ -1,0 +1,39 @@
+<div class="custom-modal" id="editWorkshopModal">
+    <div class="custom-modal__dialog">
+        <div class="custom-modal__header">
+            <h3>ویرایش کارگاه</h3>
+            <button type="button" class="custom-modal__close" onclick="closeEditWorkshopModal()">×</button>
+        </div>
+
+        <form method="post" action="" id="editWorkshopForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_workshop">
+
+            <div class="custom-modal__body">
+                <div class="modal-form-grid">
+                    <div class="modal-form-group modal-form-group--full">
+                        <label for="editWorkshopName">نام ورکشاپ</label>
+                        <input type="text" id="editWorkshopName" name="name">
+                    </div>
+
+                    <div class="modal-form-group">
+                        <label for="editWorkshopNationalCode">کد ملی</label>
+                        <input type="text" id="editWorkshopNationalCode" name="national_code">
+                    </div>
+
+
+                    <div class="modal-form-group modal-form-group--full">
+                        <label for="editWorkshopAddress">آدرس</label>
+                        <input type="text" id="editWorkshopAddress" name="address">
+                    </div>
+                </div>
+            </div>
+
+            <div class="custom-modal__footer">
+                <button type="button" class="modal-btn modal-btn--ghost" onclick="closeEditWorkshopModal()">انصراف
+                </button>
+                <button type="submit" class="modal-btn modal-btn--primary">ذخیره تغییرات</button>
+            </div>
+        </form>
+    </div>
+</div>

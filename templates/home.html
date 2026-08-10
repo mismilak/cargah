@@ -1,0 +1,991 @@
+{# templates/home.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}زنجیره — مدیریت یکپارچه کارگاه‌های صنعتی{% endblock %}
+
+{% block extra_css %}
+    <style>
+        :root {
+            --paper: #0F1E2B;
+            --paper-2: #0A1620;
+            --panel: #16293B;
+            --panel-2: #1C3247;
+            --grid-line: rgba(150, 190, 220, 0.07);
+            --border: rgba(150, 190, 220, 0.16);
+            --ink: #EEF3F7;
+            --ink-muted: #93A9BC;
+            --ink-faint: #5D7488;
+            --amber: #F0A73C;
+            --amber-dark: #C67F1F;
+            --amber-ink: #2B1904;
+            --stamp-red: #D96A57;
+            --stamp-green: #5CB491;
+            --line-cyan: #6FA8D6;
+            --font-display: "Vazirmatn", sans-serif;
+            --font-body: "Vazirmatn", sans-serif;
+            --font-mono: "JetBrains Mono", monospace;
+            --radius: 10px;
+            --wrap: 1160px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--font-body);
+            font-size: 16px;
+            line-height: 1.75;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: var(--font-display);
+            font-weight: 800;
+            line-height: 1.3;
+            margin: 0;
+            color: var(--ink);
+        }
+
+        p {
+            margin: 0;
+            color: var(--ink-muted);
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        ol, ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .wrap {
+            max-width: var(--wrap);
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            letter-spacing: 0.03em;
+            color: var(--amber);
+            margin-bottom: 14px;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 2px;
+            background: var(--amber);
+            display: inline-block;
+        }
+
+        /* دکمه‌ها */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 22px;
+            border-radius: var(--radius);
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 14.5px;
+            border: 1.5px solid transparent;
+            cursor: pointer;
+            transition: transform .15s ease, background .15s ease, border-color .15s ease;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--amber);
+            color: var(--amber-ink);
+        }
+
+        .btn-primary:hover {
+            background: var(--amber-dark);
+        }
+
+        .btn-outline {
+            border-color: var(--border);
+            color: var(--ink);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--line-cyan);
+        }
+
+        .btn-ghost {
+            color: var(--ink-muted);
+            padding: 12px 14px;
+        }
+
+        .btn-ghost:hover {
+            color: var(--ink);
+        }
+
+        .btn-lg {
+            padding: 14px 28px;
+            font-size: 15.5px;
+        }
+
+        /* هدر */
+        .site-header {
+            border-bottom: 1px solid var(--border);
+            background: rgba(15, 30, 43, 0.85);
+            backdrop-filter: blur(6px);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            height: 72px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-mark {
+            color: var(--amber);
+            display: flex;
+        }
+
+        .brand-name {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 19px;
+            letter-spacing: 0.01em;
+        }
+
+        .main-nav {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .main-nav a {
+            font-size: 14.5px;
+            color: var(--ink-muted);
+            transition: color .15s ease;
+        }
+
+        .main-nav a:hover {
+            color: var(--ink);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* هیرو */
+        .hero {
+            position: relative;
+            padding: 88px 0 76px;
+            background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 42px 42px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 60% 55% at 75% 20%, rgba(240, 167, 60, 0.10), transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-inner {
+            position: relative;
+            display: grid;
+            grid-template-columns:1.15fr 0.85fr;
+            gap: 56px;
+            align-items: center;
+        }
+
+        .hero-text h1 {
+            font-size: 42px;
+            margin-bottom: 20px;
+        }
+
+        .hero-lede {
+            font-size: 16.5px;
+            max-width: 46ch;
+            margin-bottom: 34px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        /* کارت سفارش */
+        .hero-visual {
+            display: flex;
+            justify-content: center;
+        }
+
+        .travel-card {
+            width: 100%;
+            max-width: 360px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px 22px 26px;
+            position: relative;
+            box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55);
+        }
+
+        .travel-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding-bottom: 14px;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .travel-card-label {
+            font-size: 13px;
+            color: var(--ink-muted);
+        }
+
+        .travel-card-code {
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: var(--line-cyan);
+            direction: ltr;
+        }
+
+        .travel-card-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 13px;
+            color: var(--ink-muted);
+            margin-bottom: 20px;
+        }
+
+        .travel-stations {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .travel-stations::before {
+            content: "";
+            position: absolute;
+            top: 8px;
+            bottom: 8px;
+            right: 5px;
+            width: 1.5px;
+            background: repeating-linear-gradient(var(--border) 0 4px, transparent 4px 8px);
+        }
+
+        .travel-station {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 11px 0;
+            position: relative;
+        }
+
+        .station-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 3px;
+            background: var(--paper-2);
+            border: 2px solid var(--ink-faint);
+            margin-top: 3px;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .station-order .station-dot,
+        .station-production .station-dot {
+            border-color: var(--amber);
+            background: var(--amber);
+        }
+
+        .station-settlement .station-dot {
+            border-color: var(--stamp-green);
+            background: var(--stamp-green);
+        }
+
+        .station-dispatch .station-dot {
+            border-color: var(--line-cyan);
+            background: var(--line-cyan);
+        }
+
+        .station-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex: 1;
+            gap: 10px;
+        }
+
+        .station-title {
+            font-size: 14.5px;
+            font-weight: 500;
+        }
+
+        .station-stamp {
+            font-family: var(--font-mono);
+            font-size: 10.5px;
+            padding: 3px 9px;
+            border-radius: 20px;
+            border: 1px solid currentColor;
+            transform: rotate(-4deg);
+            white-space: nowrap;
+        }
+
+        .station-order .station-stamp,
+        .station-production .station-stamp {
+            color: var(--amber);
+        }
+
+        .station-settlement .station-stamp {
+            color: var(--stamp-green);
+        }
+
+        .station-dispatch .station-stamp {
+            color: var(--line-cyan);
+        }
+
+        /* آمار */
+        .stats {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns:repeat(4, 1fr);
+            padding: 40px 24px;
+        }
+
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 0 24px;
+            border-right: 1px solid var(--border);
+        }
+
+        .stat-card:first-child {
+            padding-right: 0;
+        }
+
+        .stats-grid .stat-card:last-child {
+            border-left: 1px solid var(--border);
+        }
+
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .stat-suffix {
+            color: var(--amber);
+            font-size: 18px;
+        }
+
+        .stat-label {
+            font-size: 13.5px;
+            color: var(--ink-muted);
+        }
+
+        /* بخش‌های عمومی */
+        .section-head {
+            max-width: 640px;
+            margin-bottom: 44px;
+        }
+
+        .section-head h2 {
+            font-size: 30px;
+            margin-bottom: 14px;
+        }
+
+        .section-head p {
+            font-size: 15.5px;
+        }
+
+        .process, .features {
+            padding: 84px 0;
+        }
+
+        .process {
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* مراحل */
+        .stage-grid {
+            display: grid;
+            grid-template-columns:repeat(4, 1fr);
+            gap: 18px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 26px 22px;
+            transition: border-color .15s ease;
+        }
+
+        .stage-card:hover {
+            border-color: var(--line-cyan);
+        }
+
+        .stage-code {
+            display: block;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--amber);
+            margin-bottom: 16px;
+        }
+
+        .stage-card h3 {
+            font-size: 17px;
+            margin-bottom: 10px;
+        }
+
+        .stage-card p {
+            font-size: 14px;
+        }
+
+        /* امکانات */
+        .feature-grid {
+            display: grid;
+            grid-template-columns:repeat(3, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .feature-card {
+            background: var(--paper);
+            padding: 30px 26px;
+        }
+
+        .feature-index {
+            display: block;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--ink-faint);
+            margin-bottom: 18px;
+        }
+
+        .feature-card h3 {
+            font-size: 16.5px;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+        }
+
+        /* عضویت */
+        .join {
+            padding: 90px 0;
+            background: var(--paper-2);
+            border-top: 1px solid var(--border);
+        }
+
+        .join-inner {
+            display: grid;
+            grid-template-columns:1.1fr 0.9fr;
+            gap: 56px;
+            align-items: center;
+        }
+
+        .join-text h2 {
+            font-size: 28px;
+            margin-bottom: 26px;
+        }
+
+        .join-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 32px;
+            counter-reset: step;
+        }
+
+        .join-steps li {
+            counter-increment: step;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14.5px;
+            color: var(--ink-muted);
+        }
+
+        .join-steps li::before {
+            content: counter(step);
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--amber);
+            flex-shrink: 0;
+        }
+
+        .join-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 26px;
+            position: relative;
+        }
+
+        .join-card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 13.5px;
+            color: var(--ink-muted);
+        }
+
+        .join-card-row:last-of-type {
+            border-bottom: none;
+        }
+
+        .join-card-line {
+            width: 45%;
+            height: 1px;
+            background: var(--ink-faint);
+        }
+
+        .join-card-stamp {
+            margin-top: 20px;
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--stamp-red);
+            border: 1.5px solid var(--stamp-red);
+            border-radius: 6px;
+            padding: 6px 14px;
+            transform: rotate(-4deg);
+        }
+
+        /* فوتر */
+        .site-footer {
+            border-top: 1px solid var(--border);
+            padding-top: 56px;
+        }
+
+        .footer-inner {
+            display: flex;
+            justify-content: space-between;
+            gap: 40px;
+            padding-bottom: 40px;
+        }
+
+        .footer-brand p {
+            font-size: 13.5px;
+            margin-top: 10px;
+            max-width: 32ch;
+        }
+
+        .footer-cols {
+            display: flex;
+            gap: 64px;
+        }
+
+        .footer-col {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .footer-col h4 {
+            font-size: 13px;
+            color: var(--ink-faint);
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .footer-col a {
+            font-size: 14px;
+            color: var(--ink-muted);
+        }
+
+        .footer-col a:hover {
+            color: var(--ink);
+        }
+
+        .footer-bottom {
+            border-top: 1px solid var(--border);
+            padding: 20px 24px;
+            font-size: 13px;
+            color: var(--ink-faint);
+        }
+
+        /* واکنش‌گرا */
+        @media (max-width: 980px) {
+            .hero-inner {
+                grid-template-columns:1fr;
+            }
+
+            .hero-visual {
+                order: -1;
+            }
+
+            .stats-grid {
+                grid-template-columns:repeat(2, 1fr);
+                gap: 24px;
+            }
+
+            .stat-card {
+                border-right: none !important;
+                border-left: none !important;
+                padding: 0 !important;
+            }
+
+            .stage-grid {
+                grid-template-columns:repeat(2, 1fr);
+            }
+
+            .feature-grid {
+                grid-template-columns:repeat(2, 1fr);
+            }
+
+            .join-inner {
+                grid-template-columns:1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main-nav {
+                display: none;
+            }
+
+            .hero-text h1 {
+                font-size: 32px;
+            }
+
+            .stats-grid {
+                grid-template-columns:1fr;
+            }
+
+            .stage-grid {
+                grid-template-columns:1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns:1fr;
+            }
+
+            .footer-inner {
+                flex-direction: column;
+                gap: 28px;
+            }
+        }
+
+        a:focus-visible, button:focus-visible {
+            outline: 2px solid var(--amber);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+
+            .btn {
+                transition: none;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <header class="site-header">
+        <div class="wrap header-inner">
+            <a href="{% url 'orders:home' %}" class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="28" height="28">
+          <rect x="2" y="2" width="28" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M9 22V13l7-5 7 5v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M9 22h14M16 22v-6" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </span>
+                <span class="brand-name">زنجیره</span>
+            </a>
+            <nav class="main-nav" aria-label="ناوبری اصلی">
+                <a href="#process">فرایند</a>
+                <a href="#features">امکانات</a>
+                <a href="#stats">آمار پلتفرم</a>
+                <a href="#join">ثبت‌نام کارگاه</a>
+            </nav>
+            <div class="header-actions">
+                {% if not user.is_authenticated %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-ghost">ورود</a>
+                    <a href="{% url 'accounts:register' %}" class="btn btn-primary">ثبت‌نام</a>
+                {% else %}
+                    <a href="{% url 'accounts:dashboard' %}" class="btn btn-success">داشبورد</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main>
+
+        <section class="hero">
+            <div class="wrap hero-inner">
+                <div class="hero-text">
+                    <span class="eyebrow">مدیریت یکپارچه کارگاه‌های صنعتی</span>
+                    <h1>از ثبت سفارش تا خروج از انبار،<br>روی یک خط واحد</h1>
+                    <p class="hero-lede">
+                        زنجیره، فرایند تولید کارگاه شما را از لحظه دریافت سفارش تا تحویل نهایی
+                        در یک مسیر شفاف نگه می‌دارد؛ بدون گم‌شدن سفارش در واتساپ و اکسل‌های پراکنده.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="#join" class="btn btn-primary btn-lg">ثبت‌نام کارگاه</a>
+                        <a href="#process" class="btn btn-outline btn-lg">مشاهده فرایند</a>
+                    </div>
+                </div>
+
+                <div class="hero-visual" aria-hidden="true">
+                    <div class="travel-card">
+                        <div class="travel-card-head">
+                            <span class="travel-card-label">کارت سفارش</span>
+                            <span class="travel-card-code">#WO-2026-0483</span>
+                        </div>
+                        <div class="travel-card-meta">
+                            <span>قطعه: فلنج هیدرولیک ۶۰mm</span>
+                            <span>کارگاه: تراش‌کاران البرز</span>
+                        </div>
+                        <ol class="travel-stations">
+                            <li class="travel-station station-order">
+                                <span class="station-dot" aria-hidden="true"></span>
+                                <div class="station-body">
+                                    <span class="station-title">ثبت سفارش</span>
+                                    <span class="station-stamp">ثبت شد</span>
+                                </div>
+                            </li>
+                            <li class="travel-station station-production">
+                                <span class="station-dot" aria-hidden="true"></span>
+                                <div class="station-body">
+                                    <span class="station-title">تولید قطعه</span>
+                                    <span class="station-stamp">در جریان</span>
+                                </div>
+                            </li>
+                            <li class="travel-station station-settlement">
+                                <span class="station-dot" aria-hidden="true"></span>
+                                <div class="station-body">
+                                    <span class="station-title">تسویه حساب</span>
+                                    <span class="station-stamp">تسویه شد</span>
+                                </div>
+                            </li>
+                            <li class="travel-station station-dispatch">
+                                <span class="station-dot" aria-hidden="true"></span>
+                                <div class="station-body">
+                                    <span class="station-title">خروج از انبار</span>
+                                    <span class="station-stamp">خارج شد</span>
+                                </div>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats" id="stats">
+            <div class="wrap stats-grid">
+                <div class="stat-card">
+                    <span class="stat-value">۲۴۰<span class="stat-suffix">+</span></span>
+                    <span class="stat-label">کارگاه فعال</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">۱٬۸۶۰</span>
+                    <span class="stat-label">سفارش در جریان</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">۹۸۰<span class="stat-suffix"> هزار</span></span>
+                    <span class="stat-label">قطعه تولیدشده امسال</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">۴۸<span class="stat-suffix"> ساعت</span></span>
+                    <span class="stat-label">میانگین زمان تسویه</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="process" id="process">
+            <div class="wrap">
+                <div class="section-head">
+                    <span class="eyebrow">فرایند تولید</span>
+                    <h2>هر سفارش، چهار ایستگاه را طی می‌کند</h2>
+                    <p>هر کارگاه می‌تواند نام و جزئیات ایستگاه‌ها را متناسب با خط تولید خودش تنظیم کند.</p>
+                </div>
+                <div class="stage-grid">
+                    <div class="stage-card">
+                        <span class="stage-code">ایستگاه ۰۱</span>
+                        <h3>ثبت سفارش</h3>
+                        <p>کارفرما مشخصات قطعه، تیراژ و مهلت تحویل را ثبت می‌کند.</p>
+                    </div>
+                    <div class="stage-card">
+                        <span class="stage-code">ایستگاه ۰۲</span>
+                        <h3>تولید قطعه</h3>
+                        <p>سفارش به خط تولید منتقل و پیشرفت هر مرحله لحظه‌ای ثبت می‌شود.</p>
+                    </div>
+                    <div class="stage-card">
+                        <span class="stage-code">ایستگاه ۰۳</span>
+                        <h3>تسویه حساب</h3>
+                        <p>صورتحساب خودکار صادر و وضعیت پرداخت رهگیری می‌شود.</p>
+                    </div>
+                    <div class="stage-card">
+                        <span class="stage-code">ایستگاه ۰۴</span>
+                        <h3>خروج از انبار</h3>
+                        <p>حواله خروج صادر، موجودی به‌روز و مرسوله آماده تحویل می‌شود.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features" id="features">
+            <div class="wrap">
+                <div class="section-head">
+                    <span class="eyebrow">امکانات پلتفرم</span>
+                    <h2>همه چیزهایی که یک کارگاه صنعتی برای اجرای منظم سفارش نیاز دارد</h2>
+                </div>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <span class="feature-index">01</span>
+                        <h3>پیگیری لحظه‌ای سفارش</h3>
+                        <p>هر سفارش یک کد رهگیری واحد دارد و وضعیت آن برای همه شفاف است.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-index">02</span>
+                        <h3>مدیریت خط تولید</h3>
+                        <p>ایستگاه‌های کاری، ظرفیت و صف تولید هر کارگاه قابل تعریف است.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-index">03</span>
+                        <h3>صورتحساب خودکار</h3>
+                        <p>با تکمیل هر مرحله، اقلام صورتحساب محاسبه و برای تایید ارسال می‌شود.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-index">04</span>
+                        <h3>کنترل موجودی انبار</h3>
+                        <p>ورود، خروج و موجودی لحظه‌ای انبار در یک داشبورد واحد.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-index">05</span>
+                        <h3>گزارش عملکرد</h3>
+                        <p>زمان تحویل، نرخ ضایعات و میانگین تسویه برای تصمیم‌گیری بهتر.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-index">06</span>
+                        <h3>دسترسی نقش‌محور</h3>
+                        <p>هر کاربر فقط بخش مرتبط با نقش خودش را می‌بیند.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="join" id="join">
+            <div class="wrap join-inner">
+                <div class="join-text">
+                    <span class="eyebrow">شروع کار با زنجیره</span>
+                    <h2>کارگاه خود را به این خط تولید متصل کنید</h2>
+                    <ol class="join-steps">
+                        <li>اطلاعات کارگاه و زمینه فعالیت را ثبت کنید
+                        </li>
+                        <li>ایستگاه‌های کاری و ظرفیت تولید را تعریف کنید</li>
+                        <li>اولین سفارش را دریافت و وارد خط تولید کنید</li>
+                    </ol>
+                    <a href="{% url 'accounts:register' %}" class="btn btn-primary btn-lg">ثبت‌نام کارگاه</a>
+                </div>
+
+                <div class="join-card" aria-hidden="true">
+                    <div class="join-card-row">
+                        <span>نام کارگاه</span>
+                        <span class="join-card-line"></span>
+                    </div>
+                    <div class="join-card-row">
+                        <span>زمینه فعالیت</span>
+                        <span class="join-card-line"></span>
+                    </div>
+                    <div class="join-card-row">
+                        <span>ظرفیت تولید روزانه</span>
+                        <span class="join-card-line"></span>
+                    </div>
+                    <div class="join-card-stamp">در انتظار ثبت</div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="site-footer">
+        <div class="wrap footer-inner">
+            <div class="footer-brand">
+                <span class="brand-name">زنجیره</span>
+                <p>زنجیره تولید، از سفارش تا تحویل — روی یک خط واحد.</p>
+            </div>
+            <div class="footer-cols">
+                <div class="footer-col">
+                    <h4>پلتفرم</h4>
+                    <a href="#process">فرایند تولید</a>
+                    <a href="#features">امکانات</a>
+                    <a href="#join">ثبت‌نام کارگاه</a>
+                </div>
+                <div class="footer-col">
+                    <h4>پشتیبانی</h4>
+                    <a href="#">راهنمای شروع کار</a>
+                    <a href="#">تماس با ما</a>
+                </div>
+            </div>
+        </div>
+        <div class="wrap footer-bottom">
+            <span>© 2026 زنجیره — تمامی حقوق محفوظ است.</span>
+        </div>
+    </footer>
+
+{% endblock %}

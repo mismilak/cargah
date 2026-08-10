@@ -1,0 +1,513 @@
+{% extends 'orders/_dashboard_base.html' %}
+{% load static %}
+
+{% block tab_content %}
+
+{% if show_created %}
+<div class="alert alert-success">نوع خدمت با موفقیت ثبت شد.</div>
+{% endif %}
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-icon">📋</span>
+        <div class="kpi-value">{{ total_orders }}</div>
+        <div class="kpi-label">کل سفارشات</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-icon">👥</span>
+        <div class="kpi-value">{{ total_customers }}</div>
+        <div class="kpi-label">مشتریان</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-icon">📥</span>
+        <div class="kpi-value">{{ status_counts.reception|default:0 }}</div>
+        <div class="kpi-label">در پذیرش</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-icon">🔧</span>
+        <div class="kpi-value">{{ status_counts.technical|default:0 }}</div>
+        <div class="kpi-label">در فنی</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-icon">💰</span>
+        <div class="kpi-value">{{ status_counts.accounting|default:0 }}</div>
+        <div class="kpi-label">در حسابداری</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-icon">✅</span>
+        <div class="kpi-value">{{ status_counts.done|default:0 }}</div>
+        <div class="kpi-label">تکمیل‌شده</div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="section-card">
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="orders">سفارشات</button>
+        <button class="tab-btn" data-tab="services">انواع خدمات</button>
+    </div>
+
+    <!-- Services Tab -->
+    <div id="tab-services" class="tab-pane" style="display:none;">
+        <form method="post" action="{% url 'orders:management' workshop.id %}" class="service-form"
+              id="service-form">
+            {% csrf_token %}
+            <input type="hidden" id="service-id" name="service_id">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>نام خدمت</label>
+                    <input type="text" name="name" id="service-name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>نام دستگاه</label>
+                    <input type="text" name="machine_name" id="service-machine" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>واحد</label>
+                    <select name="unit" id="service-unit" class="form-control" required>
+                        <option value="">انتخاب کنید</option>
+                        {% for code, label in form.fields.unit.choices %}
+                        <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>مبلغ پایه (ریال)</label>
+                    <input type="number" name="base_price" id="service-price" class="form-control" required>
+                </div>
+                <div class="form-group form-group--btn">
+                    <button type="submit" class="btn-primary" id="btn-submit">افزودن</button>
+                </div>
+            </div>
+        </form>
+        <div class="orders-table-wrap">
+            <table class="service-table">
+                <thead>
+                <tr>
+                    <th>نام خدمت</th>
+                    <th>دستگاه</th>
+                    <th>واحد</th>
+                    <th>مبلغ پایه</th>
+                    <th>تاریخ ثبت</th>
+                    <th>عملیات</th>
+                </tr>
+                </thead>
+                <tbody id="service-tbody">
+                {% for svc in service_types %}
+                <tr data-id="{{ svc.id }}">
+                    <td>{{ svc.name }}</td>
+                    <td>{{ svc.machine_name }}</td>
+                    <td>{{ svc.get_unit_display }}</td>
+                    <td class="text-end">{{ svc.base_price|floatformat:0 }} ریال</td>
+                    <td>{{ svc.created_at|date:"Y/m/d" }}</td>
+                    <td>
+                        <button class="btn-icon btn-edit" data-id="{{ svc.id }}"
+                                data-name="{{ svc.name }}" data-machine="{{ svc.machine_name }}"
+                                data-unit="{{ svc.unit }}" data-price="{{ svc.base_price }}">✏️
+                        </button>
+                        <button class="btn-icon btn-delete" data-id="{{ svc.id }}">🗑️</button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-state">هنوز خدمتی ثبت نشده.</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Orders Tab -->
+    <div id="tab-orders" class="tab-pane active">
+
+        <h4>فعال</h4>
+        <div class="orders-table-wrap">
+            <table class="service-table">
+                <thead>
+                <tr>
+                    <th>کد</th>
+                    <th>مشتری</th>
+                    <th>وضعیت</th>
+                    <th>تاریخ</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for o in orders_list %}
+                <tr class="order-row" data-id="{{ o.id }}" style="cursor:pointer;">
+                    <td>{{ o.code }}</td>
+                    <td>{{ o.customer.name }}</td>
+                    <td>{{ o.get_status_display }}</td>
+                    <td>{{ o.created_at|date:"Y/m/d" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="empty-state">سفارشی وجود ندارد.</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h4>آرشیو</h4>
+        <div class="orders-table-wrap">
+            <table class="service-table">
+                <thead>
+                <tr>
+                    <th>کد</th>
+                    <th>مشتری</th>
+                    <th>وضعیت</th>
+                    <th>تاریخ</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for o in archived_orders %}
+                <tr class="order-row" data-id="{{ o.id }}" style="cursor:pointer;">
+                    <td>{{ o.code }}</td>
+                    <td>{{ o.customer.name }}</td>
+                    <td>{{ o.get_status_display }}</td>
+                    <td>{{ o.created_at|date:"Y/m/d" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="empty-state">سفارش آرشیوشده‌ای وجود ندارد.</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h4>متوقف‌شده</h4>
+        <div class="orders-table-wrap">
+            <table class="service-table">
+                <thead>
+                <tr>
+                    <th>کد</th>
+                    <th>مشتری</th>
+                    <th>وضعیت</th>
+                    <th>تاریخ</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for o in stopped_orders %}
+                <tr class="order-row" data-id="{{ o.id }}" style="cursor:pointer;">
+                    <td>{{ o.code }}</td>
+                    <td>{{ o.customer.name }}</td>
+                    <td>{{ o.get_status_display }}</td>
+                    <td>{{ o.created_at|date:"Y/m/d" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="empty-state">سفارش متوقف‌شده‌ای وجود ندارد.</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div id="order-modal"
+         style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:12px;width:560px;max-width:95vw;padding:24px;position:relative;max-height:90vh;overflow-y:auto;">
+            <button onclick="closeOrderModal()"
+                    style="position:absolute;top:12px;left:12px;background:none;border:none;font-size:20px;cursor:pointer;">
+                ✕
+            </button>
+            <h3 id="modal-title" style="margin:0 0 16px;font-size:16px;"></h3>
+            <div id="modal-body" style="font-size:14px;color:#334155;line-height:2;"></div>
+            <div id="modal-actions" style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    .tab-nav {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid var(--border-color, #e2e8f0);
+        margin-bottom: 16px;
+    }
+
+    .tab-btn {
+        padding: 8px 20px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 14px;
+        color: var(--text-muted, #64748b);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: color 0.2s, border-color 0.2s;
+    }
+
+    .tab-btn.active {
+        color: var(--primary, #3b82f6);
+        border-bottom-color: var(--primary, #3b82f6);
+        font-weight: 600;
+    }
+
+    .tab-btn:hover:not(.active) {
+        color: var(--text, #1e293b);
+    }
+
+    #tab-orders h4 {
+        margin: 20px 0 8px;
+        font-size: 14px;
+        color: var(--text-muted, #64748b);
+        font-weight: 600;
+    }
+
+    #tab-orders h4:first-child {
+        margin-top: 0;
+    }
+</style>
+
+<script>
+    let currentOrderId = null;
+    const WORKSHOP_ID = {{workshop.id}};
+
+    const URLS = {
+        orderDetail: "{% url 'orders:order_detail' workshop.id 0 %}".replace('/0/', '/'),
+        orderAction: "{% url 'orders:order_action' workshop.id 0 %}".replace('/0/', '/'),
+        editActivitiesBulk: `/${WORKSHOP_ID}/order/`,
+    };
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.order-row').forEach(row => {
+            row.addEventListener('click', () => openOrderModal(row.dataset.id));
+        });
+    });
+
+    function openOrderModal(orderId) {
+        currentOrderId = orderId;
+
+        fetch(URLS.orderDetail + orderId + '/')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('modal-title').textContent = 'سفارش ' + data.code;
+                console.log(data);
+
+                // --- بخش فعالیت‌ها با inputهای قابل ویرایش ---
+                let activitiesHtml = (data.activities && data.activities.length > 0) ? `
+                    <hr style="margin:16px 0;">
+                    <b style="font-size:13px;">عملیات انجام‌شده</b>
+                    <form method="post" action="${URLS.editActivitiesBulk}${orderId}/activities/edit/" id="activities-form">
+                        <input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
+                        <div style="overflow-x:auto;margin-top:8px;">
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                                <thead>
+                                    <tr style="background:#f1f5f9;">
+                                        <th style="padding:6px 8px;text-align:right;border:1px solid #e2e8f0;">خدمت</th>
+                                        <th style="padding:6px 8px;text-align:right;border:1px solid #e2e8f0;">دستگاه</th>
+                                        <th style="padding:6px 8px;text-align:right;border:1px solid #e2e8f0;">مقدار</th>
+                                        <th style="padding:6px 8px;text-align:right;border:1px solid #e2e8f0;">مبلغ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.activities.map(a => `
+                                        <tr>
+                                            <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+                                                ${a.service__name || '-'}
+                                                <input type="hidden" name="activity_id" value="${a.id}">
+                                            </td>
+                                            <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+                                                ${a.service__machine_name || '-'}
+                                            </td>
+                                            <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+                                                <div style="display:flex;align-items:center;gap:6px;">
+                                                    <input
+                                                        type="number"
+                                                        step="any"
+                                                        name="duration_value_${a.id}"
+                                                        value="${a.duration_value ?? ''}"
+                                                        style="width:90px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px;"
+                                                    >
+                                                    <span>${a.service__unit || ''}</span>
+                                                </div>
+                                            </td>
+                                            <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    name="price_${a.id}"
+                                                    value="${a.price ?? ''}"
+                                                    style="width:110px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px;"
+                                                >
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+
+                            <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                                <button type="submit" class="btn-primary" style="background:#2563eb;">
+                                    ذخیره تغییرات فعالیت‌ها
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                ` : '<hr><p>عملیاتی ثبت نشده.</p>';
+
+                // --- بخش پرداخت‌ها (اصلاح شده) ---
+
+                let paymentsHtml = (data.payments && data.payments.length > 0) ? `
+                            <hr style="margin:16px 0;">
+                            <b style="font-size:13px;">پرداختی‌ها</b>
+                            <div style="overflow-x:auto;margin-top:8px;">
+                                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                                    <thead>
+                                        <tr style="background:#f1f5f9;">
+                                            <th style="padding:6px 8px;border:1px solid #e2e8f0;">مبلغ (ریال)</th>
+                                            <th style="padding:6px 8px;border:1px solid #e2e8f0;">نحوه</th>
+                                            <th style="padding:6px 8px;border:1px solid #e2e8f0;">تاریخ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.payments.map(p => `
+                                            <tr>
+                                                <td style="padding:6px 8px;border:1px solid #e2e8f0;">${p.amount}</td>
+                                                <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+                                                    ${p.method}
+                                                    ${p.check_status ? `<br><small style="color:#64748b;">(وضعیت چک: ${p.check_status})</small>` : ''}
+                                                </td>
+                                                <td style="padding:6px 8px;border:1px solid #e2e8f0;">${p.paid_at}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : '<hr><p>پرداختی ثبت نشده.</p>';
+
+                // --- بخش پیوست‌ها ---
+                let attachmentsHtml = (data.attachments && data.attachments.length > 0) ? `
+                    <hr style="margin:16px 0;">
+                    <b style="font-size:13px;">پیوست‌ها</b>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+                        ${data.attachments.map(att => `
+                            <a href="${att.url}" target="_blank" style="font-size:12px;">
+                                ${(att.name || '').split('/').pop()}
+                            </a>
+                        `).join('')}
+                    </div>
+                ` : '';
+
+                document.getElementById('modal-body').innerHTML = `
+                    <b>مشتری:</b> ${data.customer_name}<br>
+                    <b>وضعیت:</b> ${data.status}<br>
+                    ${activitiesHtml}
+                    ${paymentsHtml}
+                    ${attachmentsHtml}
+                `;
+
+                buildActions(orderId, data);
+                document.getElementById('order-modal').style.display = 'flex';
+            })
+            .catch(err => {
+                console.error('خطا:', err);
+                alert('خطا در دریافت اطلاعات');
+            });
+    }
+
+    function buildActions(orderId, data) {
+        const wrap = document.getElementById('modal-actions');
+        wrap.innerHTML = '';
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+
+        const LABELS = {
+            reception: 'پذیرش',
+            technical: 'فنی',
+            accounting: 'حسابداری',
+            done: 'تکمیل',
+            stop: 'توقف',
+            archive: 'آرشیو'
+        };
+
+        function approvePayment(orderId) {
+            if (!confirm('آیا سفارش برای تسویه حساب تایید شود؟')) return;
+
+            fetch(`/billing/${WORKSHOP_ID}/order/${orderId}/manager-approve/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) {
+                        alert('سفارش تایید و به حسابداری ارسال شد.');
+                        closeOrderModal();
+                        location.reload();
+                    } else {
+                        alert(data.error || 'خطا در تایید');
+                    }
+                });
+        }
+
+        const post = (action, label, style) => {
+            const f = document.createElement('form');
+            f.method = 'post';
+            f.action = URLS.orderAction + orderId + '/';
+            f.innerHTML = `
+                <input type="hidden" name="csrfmiddlewaretoken" value="${csrf}">
+                <input type="hidden" name="action" value="${action}">
+                <button type="submit" class="btn-primary" style="${style}">${label}</button>
+            `;
+
+            f.addEventListener('submit', e => {
+                if (!confirm(`آیا از انجام عملیات «${LABELS[action] || action}» اطمینان دارید؟`)) {
+                    e.preventDefault();
+                }
+            });
+
+            wrap.appendChild(f);
+        };
+
+        if (!data.is_stopped && !data.is_archived) {
+            post('reception', '📥 پذیرش', '');
+            post('technical', '🔧 فنی', '');
+            post('accounting', '💰 حسابداری', '');
+            post('done', '✅ تکمیل', 'background:#22c55e;');
+            post('stop', '⛔ توقف', 'background:#ef4444;');
+        }
+
+        if (!data.is_archived) {
+            post('archive', '📦 آرشیو', 'background:#64748b;');
+        }
+
+        if (!data.is_stopped && !data.is_archived) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn-primary';
+            btn.style = 'background:#0ea5e9;';
+            btn.textContent = '💳 تایید جهت پرداخت مشتری';
+            btn.onclick = () => approvePayment(orderId);
+            wrap.appendChild(btn);
+        }
+    }
+
+    function closeOrderModal() {
+        document.getElementById('order-modal').style.display = 'none';
+    }
+
+    function getCookie(name) {
+        return document.cookie
+            .split(';')
+            .map(c => c.trim())
+            .find(c => c.startsWith(name + '='))?.split('=')[1] || '';
+    }
+</script>
+
+
+{% endblock %}

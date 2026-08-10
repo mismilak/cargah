@@ -1,0 +1,69 @@
+{% extends "dashboard/base_dashboard.html" %}
+
+{% block dashboard_title %}سفارش‌ها | زنجیره{% endblock %}
+{% block page_heading %}سفارش‌ها{% endblock %}
+{% block page_subtitle %}سفارش‌های در حال انجام، کنسل شده و انجام شده{% endblock %}
+
+{% block dashboard_content %}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div class="stat-card rounded-3xl p-4">
+            <div class="mini-label mb-2">در حال انجام</div>
+            <div class="text-3xl font-extrabold text-amber-400">12</div>
+        </div>
+        <div class="stat-card rounded-3xl p-4">
+            <div class="mini-label mb-2">کنسل شده</div>
+            <div class="text-3xl font-extrabold text-rose-400">5</div>
+        </div>
+        <div class="stat-card rounded-3xl p-4">
+            <div class="mini-label mb-2">انجام شده</div>
+            <div class="text-3xl font-extrabold text-green-400">38</div>
+        </div>
+    </div>
+
+    <section class="glass-card rounded-3xl p-4 p-lg-5">
+        <div class="content-scroll">
+            <table class="table table-dark-custom align-middle">
+                <thead>
+                <tr>
+                    <th>ردیف</th>
+                    <th>شماره سفارش</th>
+                    <th>مشتری</th>
+                    <th>قطعه</th>
+                    <th>تاریخ ثبت</th>
+                    <th>تاریخ تحویل</th>
+                    <th>وضعیت</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>1405-001</td>
+                    <td>شرکت آریا صنعت</td>
+                    <td>فلنج فولادی</td>
+                    <td>1405/04/25</td>
+                    <td>1405/05/05</td>
+                    <td><span class="badge-soft badge-progress">در حال انجام</span></td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>1405-005</td>
+                    <td>مدیریت</td>
+                    <td>رینگ نگهدارنده</td>
+                    <td>1405/04/29</td>
+                    <td>1405/05/10</td>
+                    <td><span class="badge-soft badge-danger">کنسل شده</span></td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>1405-004</td>
+                    <td>شرکت مبین</td>
+                    <td>کاسه نمد نشیمن</td>
+                    <td>1405/04/28</td>
+                    <td>1405/05/08</td>
+                    <td><span class="badge-soft badge-success">انجام شده</span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}
