@@ -360,35 +360,46 @@
                     </form>
                 ` : '<hr><p>عملیاتی ثبت نشده.</p>';
 
-                // --- بخش پرداخت‌ها (اصلاح شده) ---
-
-                let paymentsHtml = (data.payments && data.payments.length > 0) ? `
-                            <hr style="margin:16px 0;">
-                            <b style="font-size:13px;">پرداختی‌ها</b>
-                            <div style="overflow-x:auto;margin-top:8px;">
-                                <table style="width:100%;border-collapse:collapse;font-size:12px;">
-                                    <thead>
-                                        <tr style="background:#f1f5f9;">
-                                            <th style="padding:6px 8px;border:1px solid #e2e8f0;">مبلغ (ریال)</th>
-                                            <th style="padding:6px 8px;border:1px solid #e2e8f0;">نحوه</th>
-                                            <th style="padding:6px 8px;border:1px solid #e2e8f0;">تاریخ</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${data.payments.map(p => `
-                                            <tr>
-                                                <td style="padding:6px 8px;border:1px solid #e2e8f0;">${p.amount}</td>
-                                                <td style="padding:6px 8px;border:1px solid #e2e8f0;">
-                                                    ${p.method}
-                                                    ${p.check_status ? `<br><small style="color:#64748b;">(وضعیت چک: ${p.check_status})</small>` : ''}
-                                                </td>
-                                                <td style="padding:6px 8px;border:1px solid #e2e8f0;">${p.paid_at}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
+                                    let paymentsHtml = `
+                        <hr style="margin:16px 0;">
+                        <b style="font-size:13px;">وضعیت مالی</b>
+                        <div style="margin-top:8px;font-size:12px;line-height:2;">
+                            <div><b>جمع مبلغ خدمات:</b> ${data.financial_summary?.total_amount ?? '0'} ریال</div>
+                            <div><b>جمع پرداختی:</b> ${data.financial_summary?.total_paid ?? '0'} ریال</div>
+                            <div>
+                                <b>مانده حساب:</b> ${data.financial_summary?.balance ?? '0'} ریال
+                                <span style="color:${data.financial_summary?.debt_status === 'بدهکار' ? '#dc2626' : (data.financial_summary?.debt_status === 'بستانکار' ? '#2563eb' : '#16a34a')};font-weight:600;">
+                                    (${data.financial_summary?.debt_status ?? '-'})
+                                </span>
                             </div>
-                        ` : '<hr><p>پرداختی ثبت نشده.</p>';
+                        </div>
+                    `;
+
+                    paymentsHtml += (data.payments && data.payments.length > 0) ? `
+                        <div style="overflow-x:auto;margin-top:12px;">
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                                <thead>
+                                    <tr style="background:#f1f5f9;">
+                                        <th style="padding:6px 8px;border:1px solid #e2e8f0;">مبلغ (ریال)</th>
+                                        <th style="padding:6px 8px;border:1px solid #e2e8f0;">نحوه</th>
+                                        <th style="padding:6px 8px;border:1px solid #e2e8f0;">تاریخ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.payments.map(p => `
+                                        <tr>
+                                            <td style="padding:6px 8px;border:1px solid #e2e8f0;">${p.amount}</td>
+                                            <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+                                                ${p.method}
+                                                ${p.check_status ? `<br><small style="color:#64748b;">(${p.check_status})</small>` : ''}
+                                            </td>
+                                            <td style="padding:6px 8px;border:1px solid #e2e8f0;">${p.paid_at}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : '<p style="margin-top:12px;">پرداختی ثبت نشده.</p>';
 
                 // --- بخش پیوست‌ها ---
                 let attachmentsHtml = (data.attachments && data.attachments.length > 0) ? `
@@ -404,7 +415,9 @@
                 ` : '';
 
                 document.getElementById('modal-body').innerHTML = `
-                    <b>مشتری:</b> ${data.customer_name}<br>
+                    <b>مشتری:</b> ${data.customer_name}  <br>
+                    <b>موبایل:</b> ${data.customer_phone} <br>
+                    <b>کارگاه/شرکت:</b> ${data.customer_workshop_name} <br>
                     <b>وضعیت:</b> ${data.status}<br>
                     ${activitiesHtml}
                     ${paymentsHtml}
@@ -431,8 +444,12 @@
             accounting: 'حسابداری',
             done: 'تکمیل',
             stop: 'توقف',
-            archive: 'آرشیو'
+            archive: 'آرشیو',
+            release: 'ترخیص'
         };
+
+
+
 
         function approvePayment(orderId) {
             if (!confirm('آیا سفارش برای تسویه حساب تایید شود؟')) return;
@@ -480,6 +497,7 @@
             post('accounting', '💰 حسابداری', '');
             post('done', '✅ تکمیل', 'background:#22c55e;');
             post('stop', '⛔ توقف', 'background:#ef4444;');
+            post('release', '🚚 ارسال برای ترخیص', 'background:#8b5cf6;');
         }
 
         if (!data.is_archived) {

@@ -14,6 +14,8 @@ from .forms import ReceptionForm, CustomerCreateForm
 from .models import Customer, Order
 from .models import OrderAttachment
 from django.db.models import Prefetch
+from decimal import Decimal, InvalidOperation
+from django.shortcuts import get_object_or_404, redirect
 
 
 def home(request):
@@ -209,25 +211,39 @@ def order_detail(request, workshop_id, order_id):
             'kind': kind,
         })
 
-    try:
-        invoices = Invoice.objects.filter(order=order)
-        payments_qs = Payment.objects.filter(invoice__in=invoices).order_by('-created_at')
+    invoices = Invoice.objects.filter(order=order)
+    payments_qs = Payment.objects.filter(invoice__in=invoices).order_by('-created_at')
 
-        payments_data = []
-        for p in payments_qs:
-            payments_data.append({
-                'amount': f"{int(p.amount):,}",  # فرمت سه رقم جدا کننده
-                'method': p.method,  # نمایش متنِ فارسی (نقد، چک و...)
-                'paid_at': p.paid_at.strftime('%Y/%m/%d') if p.paid_at else '',
-                'check_status': p.check_status if p.method == 'check' else None
-            })
-    except Invoice.DoesNotExist:
-        pass
+    payments_data = []
+    total_paid = 0
+
+    for p in payments_qs:
+        amount_int = int(p.amount)
+        total_paid += amount_int
+
+        payments_data.append({
+            'amount': f"{amount_int:,}",
+            'amount_raw': amount_int,
+            'method': p.get_method_display(),
+            'paid_at': p.paid_at.strftime('%Y/%m/%d') if p.paid_at else '',
+            'check_status': p.get_check_status_display() if p.method == 'check' and p.check_status else None,
+        })
+
+    total_activities_amount = sum(int(act['price']) * int(act['duration_value']) for act in activities)
+    balance = total_activities_amount - total_paid
+
+    if balance > 0:
+        debt_status = 'بدهکار'
+    elif balance < 0:
+        debt_status = 'بستانکار'
+    else:
+        debt_status = 'تسویه'
 
     return JsonResponse({
         'code': order.code,
         'customer_name': order.customer.name,
         'customer_phone': order.customer.phone,
+        'customer_workshop_name': order.customer.customer_workshop_name,
         'status': order.get_status_display(),
         'created_at': order.created_at.strftime('%Y/%m/%d'),
         'created_by': str(order.created_by) if order.created_by else '—',
@@ -237,6 +253,13 @@ def order_detail(request, workshop_id, order_id):
         'is_stopped': order.is_stopped,
         'is_archived': order.is_archived,
         'payments': payments_data,
+        'financial_summary': {
+            'total_amount': f"{total_activities_amount:,}",
+            'total_paid': f"{total_paid:,}",
+            'balance': f"{abs(balance):,}",
+            'balance_raw': balance,
+            'debt_status': debt_status,
+        }
     })
 
 
@@ -245,34 +268,62 @@ def order_detail(request, workshop_id, order_id):
 def order_action(request, workshop_id, order_id):
     order = get_object_or_404(Order, id=order_id, workshop_id=workshop_id)
     action = request.POST.get('action')
-    if action in ('reception', 'technical', 'accounting', 'done'):
+    status_actions = {'reception', 'technical', 'accounting', 'done', 'release'}
+    print(action)
+    if action in status_actions:
         order.status = action
         order.is_stopped = False
-        order.save()
+        order.is_archived = False
+        order.save(update_fields=['status', 'is_stopped', 'is_archived', 'updated_at'])
     elif action == 'stop':
         order.is_stopped = True
-        order.save()
+        order.is_archived = False
+        order.save(update_fields=['is_stopped', 'is_archived', 'updated_at'])
     elif action == 'archive':
         order.is_archived = True
-        order.save()
+        order.is_stopped = False
+        order.save(update_fields=['is_archived', 'is_stopped', 'updated_at'])
+
     return redirect('orders:management', workshop_id=workshop_id)
+
 
 
 @login_required
 def edit_activities_bulk(request, workshop_id, order_id):
     if request.method != 'POST':
         return redirect('orders:management', workshop_id)
-    activities = OrderActivity.objects.filter(order_id=order_id, order__workshop_id=workshop_id)
-    print(request.POST.get)
 
-    durations = request.POST.getlist('duration_value_undefined')
-    prices = request.POST.getlist('price_undefined')
-    print(durations)
+    order = get_object_or_404(Order, id=order_id, workshop_id=workshop_id)
 
-    for act, duration, price in zip(activities, durations, prices):
-        print(act, duration, price)
-        act.duration_value = duration
-        act.price = price
+    activity_ids = request.POST.getlist('activity_id')
+    activities = {
+        str(act.id): act
+        for act in OrderActivity.objects.filter(
+            order=order,
+            id__in=activity_ids
+        )
+    }
+
+    for activity_id in activity_ids:
+        act = activities.get(str(activity_id))
+        if not act:
+            continue
+
+        duration = request.POST.get(f'duration_value_{activity_id}')
+        price = request.POST.get(f'price_{activity_id}')
+
+        if duration not in (None, ''):
+            try:
+                act.duration_value = Decimal(duration)
+            except (InvalidOperation, TypeError):
+                pass
+
+        if price not in (None, ''):
+            try:
+                act.price = Decimal(price)
+            except (InvalidOperation, TypeError):
+                pass
+
         act.save()
 
     return redirect('orders:management', workshop_id)
@@ -389,55 +440,6 @@ def order_refer(request, workshop_id, order_id):
     order.save()
     order.save(update_fields=['status'])
     return JsonResponse({'ok': True})
-
-
-# @login_required
-# def order_detail(request, workshop_id, order_id):
-#     order = get_object_or_404(Order, id=order_id, workshop_id=workshop_id)
-#     activities = list(order.activities.select_related('service').values(
-#         'service__name', 'service__machine_name', 'duration_value',
-#         'service__unit', 'price', 'notes', 'created_at'
-#     ))
-#     for a in activities:
-#         a['created_at'] = a['created_at'].strftime('%Y/%m/%d')
-#
-#     attachments = []
-#     for att in order.attachments.all():
-#         name = att.file.name
-#         ext = name.split('.')[-1].lower()
-#         kind = 'image' if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp') else 'pdf' if ext == 'pdf' else 'file'
-#         attachments.append({'name': name, 'url': att.file.url, 'kind': kind})
-#
-#     return JsonResponse({
-#         'code': order.code,
-#         'customer_name': order.customer.name,
-#         'customer_phone': order.customer.phone,
-#         'status': order.get_status_display(),
-#         'created_at': order.created_at.strftime('%Y/%m/%d'),
-#         'created_by': str(order.created_by) if order.created_by else '—',
-#         'description': order.description,
-#         'activities': activities,
-#         'attachments': attachments,
-#     })
-
-
-@require_POST
-@login_required
-def order_action(request, workshop_id, order_id):
-    order = get_object_or_404(Order, id=order_id, workshop_id=workshop_id)
-    action = request.POST.get('action')
-    if action in ('reception', 'technical', 'accounting', 'done'):
-        order.status = action
-        order.is_stopped = False
-        order.is_archived = False
-        order.save()
-    elif action == 'stop':
-        order.is_stopped = True
-        order.save()
-    elif action == 'archive':
-        order.is_archived = True
-        order.save()
-    return redirect('orders:management', workshop_id=workshop_id)
 
 
 # ---------------------------------------------------------------
@@ -656,7 +658,7 @@ def delivery_tab(request, workshop_id):
 
     orders = (
         Order.objects
-        .filter(workshop=workshop, status='done')
+        .filter(workshop=workshop, status='release')
         .select_related('customer', 'created_by')
         .order_by('-updated_at')
     )

@@ -91,6 +91,7 @@ class Order(models.Model):
         ('management', 'مدیریت'),
         ('payment', 'پرداخت'),
         ('done', 'تکمیل'),
+        ('release', 'ترخیص')
     ]
 
     workshop = models.ForeignKey('accounts.Workshop', on_delete=models.CASCADE)
