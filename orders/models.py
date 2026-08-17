@@ -112,6 +112,17 @@ class Order(models.Model):
         verbose_name='کد سفارش'
     )
     count_request = models.PositiveSmallIntegerField(default=1)
+    manager_release_allowed = models.BooleanField(default=False, verbose_name="مجوز ترخیص مدیر")
+    manager_release_count = models.PositiveSmallIntegerField(default=0, verbose_name="تعداد مجاز ترخیص مدیر")
+
+    # متد محاسبه مانده
+    @property
+    def total_released_count(self):
+        return self.releases.aggregate(total=models.Sum('count'))['total'] or 0
+
+    @property
+    def remaining_release_count(self):
+        return max(0, self.count_request - self.total_released_count)
 
     def save(self, *args, **kwargs):
         if not self.code:
@@ -185,3 +196,20 @@ class OrderActivityAttachment(models.Model):
     )
     file = models.FileField(upload_to='orders/activities/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+
+
+class OrderRelease(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='releases')
+    release_number = models.CharField(max_length=20, unique=True, verbose_name="شماره برگه ترخیص")
+    count = models.PositiveSmallIntegerField(verbose_name="تعداد ترخیص")
+    released_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True)
+    release_date = models.DateTimeField(auto_now_add=True)
+    is_manager_ordered = models.BooleanField(default=False) # آیا با دستور مدیر بوده؟
+
+    def save(self, *args, **kwargs):
+        if not self.release_number:
+            year = jdatetime.date.today().year
+            last_id = OrderRelease.objects.all().count() + 1
+            self.release_number = f"REL-{year}-{last_id:05d}"
+        super().save(*args, **kwargs)

@@ -2,6 +2,7 @@
 import json
 
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Count
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
@@ -11,11 +12,12 @@ from django.views.decorators.http import require_POST
 from accounts.models import Workshop, WorkshopMembership
 from billing.models import Payment, Invoice
 from .forms import ReceptionForm, CustomerCreateForm
-from .models import Customer, Order
+from .models import Customer, Order, OrderRelease
 from .models import OrderAttachment
 from django.db.models import Prefetch
 from decimal import Decimal, InvalidOperation
 from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
 
 
 def home(request):
@@ -269,7 +271,6 @@ def order_action(request, workshop_id, order_id):
     order = get_object_or_404(Order, id=order_id, workshop_id=workshop_id)
     action = request.POST.get('action')
     status_actions = {'reception', 'technical', 'accounting', 'done', 'release'}
-    print(action)
     if action in status_actions:
         order.status = action
         order.is_stopped = False
@@ -652,17 +653,84 @@ def accounting_tab(request, workshop_id):
 # ---------------------------------------------------------------
 @login_required
 def delivery_tab(request, workshop_id):
-    workshop, membership, allowed_tabs = _get_workshop_and_membership(
-        request, workshop_id, 'delivery'
-    )
+    workshop, membership, allowed_tabs = _get_workshop_and_membership(request, workshop_id, 'delivery')
 
-    orders = (
-        Order.objects
-        .filter(workshop=workshop, status='release')
-        .select_related('customer', 'created_by')
-        .order_by('-updated_at')
-    )
+    # فیلترهای تب چهارم (لیست برگه ها)
+    release_list = OrderRelease.objects.filter(order__workshop=workshop).select_related('order', 'order__customer')
+    customer_id = request.GET.get('customer')
+    order_code = request.GET.get('order_code')
+    rel_num = request.GET.get('rel_num')
+
+    if customer_id: release_list = release_list.filter(order__customer_id=customer_id)
+    if order_code: release_list = release_list.filter(order__code__icontains=order_code)
+    if rel_num: release_list = release_list.filter(release_number__icontains=rel_num)
+
+    all_orders = Order.objects.filter(workshop=workshop, status='release')
+    print(all_orders)
+    ready_orders = []  # بدون بدهی، بدون ترخیص قبلی
+    partial_orders = []  # بدون بدهی، دارای مانده
+    manager_orders = []  # بدهکار ولی دارای تاییدیه manager_release_allowed
+
+    for o in all_orders:
+        debt = o.customer.total_debt
+        released = o.total_released_count
+
+        if debt > 0:
+            if o.manager_release_allowed and o.manager_release_count > 0:
+                manager_orders.append(o)
+        else:
+            if released == 0:
+                ready_orders.append(o)
+            elif o.remaining_release_count > 0:
+                partial_orders.append(o)
 
     context = _base_context(workshop, membership, allowed_tabs, 'delivery')
-    context['orders'] = orders
+    print(manager_orders)
+    print(ready_orders)
+    print(partial_orders)
+    context.update({
+        'ready_orders': ready_orders,
+        'partial_orders': partial_orders,
+        'manager_orders': manager_orders,
+        'releases': release_list,
+        'customers': Customer.objects.filter(workshop=workshop)
+    })
     return render(request, 'orders/delivery_tab.html', context)
+
+
+
+@require_POST
+@login_required
+@transaction.atomic
+def process_release(request, workshop_id, order_id):
+    order = get_object_or_404(Order, id=order_id, workshop_id=workshop_id)
+    count = int(request.POST.get('count', 0))
+    is_manager_path = request.POST.get('is_manager') == 'true'
+
+    # چک کردن بدهی (مگر اینکه از مسیر مدیر تایید شده باشد)
+    if order.customer.total_debt > 0 and not is_manager_path:
+        messages.error(request, "مشتری بدهکار است. ترخیص فقط با دستور مدیر ممکن است.")
+        return redirect('orders:delivery_tab', workshop_id)
+
+    # چک کردن تعداد مجاز
+    limit = order.manager_release_count if is_manager_path else order.remaining_release_count
+    if count > limit or count <= 0:
+        messages.error(request, f"تعداد نامعتبر (حداکثر مجاز: {limit})")
+        return redirect('orders:delivery_tab', workshop_id)
+
+    # ثبت ترخیص
+    OrderRelease.objects.create(
+        order=order,
+        count=count,
+        released_by=request.user,
+        is_manager_ordered=is_manager_path
+    )
+
+    # ریست کردن وضعیت مدیر در صورت استفاده
+    if is_manager_path:
+        order.manager_release_allowed = False
+        order.manager_release_count = 0
+        order.save()
+
+    messages.success(request, "برگه ترخیص صادر شد.")
+    return redirect('orders:delivery_tab', workshop_id)

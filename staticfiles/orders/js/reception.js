@@ -1,4 +1,3 @@
-// ── helpers ──────────────────────────────────────────────
 function show(id) {
     document.getElementById(id).classList.add('open');
 }
@@ -258,6 +257,7 @@ document.querySelectorAll('.order-row').forEach(row => {
                 return r.json();
             })
             .then(data => {
+                console.log(data)
                 document.getElementById('detail-code').textContent = data.code || '—';
                 document.getElementById('detail-customer').textContent = data.customer_name || '—';
                 document.getElementById('detail-phone').textContent = data.customer_phone || '—';

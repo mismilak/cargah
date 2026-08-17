@@ -1,31 +1,163 @@
 {% extends "orders/_dashboard_base.html" %}
+{% load static %}
 
 {% block tab_content %}
     <div class="tab-panel">
-        <div class="panel-header"><h2>ترخیص</h2></div>
-        <div class="orders-table-wrap">
-            {% if orders %}
-                <table class="orders-table">
-                    <thead>
-                    <tr>
-                        <th>کد</th>
-                        <th>مشتری</th>
-                        <th>تاریخ تکمیل</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for order in orders %}
+        <div class="panel-header"><h2>سیستم ترخیص و خروج کالا</h2></div>
+
+        <!-- Tab Nav (هماهنگ با استایل حسابداری) -->
+        <div class="acc-tab-nav">
+            <button class="acc-tab-btn active" data-tab="ready">
+                آماده ترخیص
+                {% if ready_orders %}<span class="acc-badge">{{ ready_orders|length }}</span>{% endif %}
+            </button>
+            <button class="acc-tab-btn" data-tab="partial">
+                مانده ترخیص
+                {% if partial_orders %}<span class="acc-badge">{{ partial_orders|length }}</span>{% endif %}
+            </button>
+            <button class="acc-tab-btn" data-tab="manager" style="color:#e11d48;">
+                دستور مدیر
+                {% if manager_orders %}<span class="acc-badge"
+                                             style="background:#fee2e2; color:#b91c1c;">{{ manager_orders|length }}</span>{% endif %}
+            </button>
+            <button class="acc-tab-btn" data-tab="list">
+                لیست برگه‌های ترخیص
+            </button>
+        </div>
+
+        <!-- محتوای تب‌ها -->
+        <div id="acc-tab-ready" class="acc-tab-pane">
+            <div class="orders-table-wrap">
+                {% if ready_orders %}
+                    <table class="orders-table">
+                        <thead>
                         <tr>
-                            <td>{{ order.code }}</td>
-                            <td>{{ order.customer.name }}</td>
-                            <td>{{ order.updated_at|date:"Y/m/d" }}</td>
+                            <th>کد سفارش</th>
+                            <th>مشتری</th>
+                            <th>تعداد کل</th>
+                            <th>عملیات</th>
                         </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p class="empty-state">سفارشی در ترخیص وجود ندارد.</p>
-            {% endif %}
+                        </thead>
+                        <tbody>
+                        {% for order in ready_orders %}
+                            <tr>
+                                <td>{{ order.code }}</td>
+                                <td>{{ order.customer.name }}</td>
+                                <td>{{ order.count_request }}</td>
+                                <td>
+                                    <button class="btn-icon btn-proforma"
+                                            onclick="openReleaseModal('{{ order.id }}', {{ order.remaining_release_count }}, false)">
+                                        <span class="btn-icon__symbol">📦</span>
+                                        <span class="btn-icon__label">صدور ترخیص</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty-state">سفارشی برای ترخیص اولیه وجود ندارد.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- تب دستور مدیر (با رنگ‌بندی هشدار) -->
+        <div id="acc-tab-manager" class="acc-tab-pane" style="display:none;">
+            <div class="orders-table-wrap">
+                {% if manager_orders %}
+                    <table class="orders-table">
+                        <!-- محتوای جدول مشابه قبل -->
+                        <tbody>
+                        {% for order in manager_orders %}
+                            <tr>
+                                <!-- ... -->
+                                <td>
+                                    <button class="btn-icon"
+                                            style="background:#fff1f2; color:#be123c; border:1px solid #fecdd3;"
+                                            onclick="openReleaseModal('{{ order.id }}', {{ order.manager_release_count }}, true)">
+                                        <span class="btn-icon__symbol">⚠️</span>
+                                        <span class="btn-icon__label">ترخیص ویژه مدیر</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- تب لیست برگه‌ها (با فیلتر) -->
+        <div id="acc-tab-list" class="acc-tab-pane" style="display:none;">
+            <div class="filter-section"
+                 style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <form method="get" style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" name="rel_num" placeholder="شماره برگه" class="form-control"
+                           style="width: 150px;">
+                    <button type="submit" class="btn-primary">جستجو</button>
+                </form>
+            </div>
+            <!-- جدول برگه‌های صادر شده (OrderRelease) -->
         </div>
     </div>
+
+    <!-- Modal صدور ترخیص -->
+    <div class="modal-overlay" id="releaseModal" style="display:none;">
+        <div class="modal-box" style="max-width:400px;">
+            <div class="modal-header">
+                <h3>تایید خروج کالا</h3>
+                <button class="modal-close" onclick="closeReleaseModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="releaseForm" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="is_manager" id="isManagerInput">
+                    <div style="margin-bottom: 1.5rem;">
+                        <label>تعداد برای ترخیص:</label>
+                        <input type="number" name="count" id="releaseCountInput" class="form-control" required
+                               style="font-size: 1.2rem; text-align: center;">
+                        <p id="maxHint" style="font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;"></p>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; padding: 0.75rem;">✅ تایید و چاپ برگه
+                        خروج
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // جاوااسکریپت برای سوئیچ تب‌ها (دقیقاً مشابه منطق حسابداری شما)
+        document.querySelectorAll('.acc-tab-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const tabName = this.dataset.tab;
+
+                // غیرفعال کردن همه
+                document.querySelectorAll('.acc-tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.acc-tab-pane').forEach(p => p.style.display = 'none');
+
+                // فعال کردن انتخاب شده
+                this.classList.add('active');
+                document.getElementById('acc-tab-' + tabName).style.display = 'block';
+            });
+        });
+
+        function openReleaseModal(orderId, maxCount, isManager) {
+            const modal = document.getElementById('releaseModal');
+            const form = document.getElementById('releaseForm');
+            const countInput = document.getElementById('releaseCountInput');
+
+            form.action = `/${WORKSHOP_ID}/order/${orderId}/release-process/`;
+            countInput.max = maxCount;
+            countInput.value = maxCount;
+            document.getElementById('isManagerInput').value = isManager;
+            document.getElementById('maxHint').innerText = `حداکثر تعداد مجاز: ${maxCount}`;
+
+            modal.style.display = 'flex';
+        }
+
+        function closeReleaseModal() {
+            document.getElementById('releaseModal').style.display = 'none';
+        }
+    </script>
 {% endblock %}

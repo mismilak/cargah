@@ -166,7 +166,6 @@ def update_check_status(request, workshop_id, payment_id):
         invoice__order__workshop=workshop,
         method='check'
     )
-    print(request.POST.get)
     new_status = request.POST.get('status')
     if new_status not in ['pending', 'cleared', 'bounced']:
         return JsonResponse({'ok': False, 'error': 'وضعیت نامعتبر است'}, status=400)
